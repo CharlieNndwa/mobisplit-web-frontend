@@ -1,0 +1,7 @@
+node_modules/
+.expo/
+app/videos/
+app/*.pdf
+*.log
+hs_err_*
+.git/
