@@ -37,7 +37,7 @@ const darkMapStyle: any[] = [
   },
 ];
 
-const API_URL = "https://daringly-tacky-anemic.ngrok-free.dev";
+const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://daringly-tacky-anemic.ngrok-free.dev";
 
 export default function LongDistancePlanner() {
   const router = useRouter();

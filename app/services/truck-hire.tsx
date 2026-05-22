@@ -19,7 +19,7 @@ import { MotiView } from "moti";
 import { useRouter } from "expo-router";
 
 const { height } = Dimensions.get("window");
-const API_URL = "https://daringly-tacky-anemic.ngrok-free.dev";
+const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://daringly-tacky-anemic.ngrok-free.dev";
 
 const nightModeStyle: MapStyleElement[] = [
   { elementType: "geometry", stylers: [{ color: "#242f3e" }] },

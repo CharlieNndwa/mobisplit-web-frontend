@@ -25,9 +25,10 @@ import * as SecureStore from "expo-secure-store";
 const { width } = Dimensions.get("window");
 
 // Updated to use the local image from your app/images folder
-const HERO_IMAGE = require("../images/herro.png");
+const HERO_IMAGE = require("../images/welcomez.png");
 const FACEBOOK_ICON = "https://cdn-icons-png.flaticon.com/128/5968/5968764.png";
-const API_URL = "https://daringly-tacky-anemic.ngrok-free.dev/api/auth";
+// Dynamically use the Expo environment variable instead of the hardcoded ngrok link
+const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://daringly-tacky-anemic.ngrok-free.dev/api/auth";
 
 export default function GatewayScreen() {
   const router = useRouter();

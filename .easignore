@@ -1,7 +1,10 @@
 node_modules/
 .expo/
-app/videos/
-app/*.pdf
+.git/
+app/images/
+android/app/build/
+android/.gradle/
+*.mp4
+*.pdf
 *.log
 hs_err_*
-.git/

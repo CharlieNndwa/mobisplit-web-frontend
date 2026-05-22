@@ -7,7 +7,7 @@ import { MotiView } from "moti";
 // 🪙 FIX 1: Add SecureStore Import
 import * as SecureStore from "expo-secure-store";
 
-const API_URL = "https://daringly-tacky-anemic.ngrok-free.dev";
+const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://daringly-tacky-anemic.ngrok-free.dev";
 
 // 🪙 ADDED: Interface to solve 'never' error
 interface Vehicle {

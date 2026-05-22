@@ -20,7 +20,7 @@ import {
 } from "lucide-react-native";
 
 const { width } = Dimensions.get("window");
-const API_URL = "https://daringly-tacky-anemic.ngrok-free.dev";
+const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://daringly-tacky-anemic.ngrok-free.dev";  
 
 const PromoCard = ({ title, desc, code, color, shadowColor, isAutoApplied = false }: any) => (
   <View style={[styles.legoCard, { backgroundColor: color, shadowColor: shadowColor }]}>
