@@ -1,10 +1,8 @@
 node_modules/
 .expo/
 .git/
-app/images/
 android/app/build/
 android/.gradle/
-*.mp4
-*.pdf
-*.log
-hs_err_*
+# Ignore heavy raw text or generated generic outputs, leave core UI assets alone:
+app/images/Gemini_Generated_Image_*
+app/images/ChatGPT Image *
