@@ -3,6 +3,11 @@ node_modules/
 .git/
 android/app/build/
 android/.gradle/
-# Ignore heavy raw text or generated generic outputs, leave core UI assets alone:
-app/images/Gemini_Generated_Image_*
-app/images/ChatGPT Image *
+app/videos/
+app/*.pdf
+*.log
+hs_err_*
+
+# Whitelist your core required UI assets explicitly
+!app/images/herro.png
+!app/images/welcomez.png

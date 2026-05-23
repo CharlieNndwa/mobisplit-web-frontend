@@ -1,6 +1,13 @@
 node_modules/
 .expo/
+.git/
+android/app/build/
+android/.gradle/
 app/videos/
 app/*.pdf
 *.log
 hs_err_*
+
+# Whitelist your core required UI assets explicitly
+!app/images/herro.png
+!app/images/welcomez.png
