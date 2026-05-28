@@ -42,16 +42,18 @@ useEffect(() => {
     fetchProfileData();
   }, []);
 
- const fetchProfileData = async () => {
+// 🪙 REFACTORED SECURE CORE SYNCHRONIZATION FUNCTION
+  const fetchProfileData = async () => {
     try {
       setLoading(true);
       
-      // 1. FAST LOAD: Get cached keys matching global authentication naming rules
+      // 🪙 1. FAST CACHE PRELOAD: Pull cached values instantly so UI doesn't look blank
       const cachedName = await SecureStore.getItemAsync('user_full_name');
       const cachedEmail = await SecureStore.getItemAsync('saved_email');
       const cachedPhone = await SecureStore.getItemAsync('phone');
+      const token = await SecureStore.getItemAsync("user_token");
       
-      // Thorough ID lookups to completely neutralize the 404 Server State response
+      // Thorough identity lookups to catch variations in naming rules
       let userId = await SecureStore.getItemAsync('user_id');
       if (!userId || userId === "null" || userId === "undefined") {
         userId = await SecureStore.getItemAsync('userId');
@@ -69,7 +71,7 @@ useEffect(() => {
         }
       }
 
-      // Display what we have right away so the user isn't stuck looking at a blank screen
+      // Render whatever we have locally on screen immediately
       if (cachedName || cachedEmail || cachedPhone) {
         setProfile({
           fullName: cachedName || "",
@@ -79,55 +81,77 @@ useEffect(() => {
         });
       }
 
-      // 2. CHECK ID SECURITY: If no valid ID is stored, stop the operation before a 404 fires
+      // 🪙 2. ROUTE GUARD PROTECTION: Catch missing parameters before making a broken network call
       if (!userId || userId === "null" || userId === "undefined") {
         console.warn("MobiSplit Warning: Fetch aborted. A valid user identity fingerprint does not exist yet.");
         setLoading(false);
         return;
       }
 
+      if (!token) {
+        console.warn("MobiSplit Warning: Fetch aborted due to missing authentication headers.");
+        setLoading(false);
+        return;
+      }
+
       console.log(`🔄 Querying live database profile statistics for target: ${userId}`);
 
-      // 3. DATABASE SYNC: Dynamic lookup against user document collection
-      const response = await fetch(`${BACKEND_URL}/user/${userId}`); 
+      // 🪙 3. CLOUD RECONCILIATION: Dispatch verified request matching updated backend route metrics
+      const response = await fetch(`${BACKEND_URL}/user/${userId}`, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }); 
+
       if (!response.ok) {
         throw new Error(`Server responded with state: ${response.status}`);
       }
 
       const result = await response.json();
 
-      if (result.success && result.user) {
-        // Map data safely based on standard controller backend key maps
+      // 🪙 4. UNPACK DATA MATRIX: Read structural details securely out of the result.user block object
+      if (result && result.success && result.user) {
         const freshData = {
           fullName: result.user.fullName || result.user.full_name || "",
           email: result.user.email || "",
           phone: result.user.phone || "",
-          profileImage: result.user.profilePic || result.user.profile_image || null
+          profileImage: result.user.profileImage || result.user.profilePic || null
         };
 
+        // Update state hooks with clean camelCase keys mapped from the controller
         setProfile(freshData);
-        setIsDriver(!!result.user.isDriver || !!result.user.is_driver);
-        
-        if (result.driver) {
+        setIsDriver(!!result.user.isDriver);
+
+        // Map and extract nested vehicle profiles if the user is registered as a driver
+        if (result.user.vehicleMake || result.user.plateNumber) {
           setDriverData({
-            vehicleMake: result.driver.vehicleMake || result.driver.vehicle_make || "",
-            vehicleModel: result.driver.vehicleModel || result.driver.vehicle_model || "",
-            plate: result.driver.plate || "",
-            prdpImage: result.driver.prdpImage || result.driver.prdp_image || null,
-            licenseImage: result.driver.licenseImage || result.driver.license_image || null
+            vehicleMake: result.user.vehicleMake || "",
+            vehicleModel: result.user.vehicleModel || "",
+            plate: result.user.plateNumber || "",
+            prdpImage: null, 
+            licenseImage: null
           });
         }
 
-        // Keep local cache objects synced using standard layout keys
+        // 🪙 5. CACHE SYNCHRONIZATION: Update offline storage with clean production values
         await SecureStore.setItemAsync('user_full_name', freshData.fullName);
         await SecureStore.setItemAsync('saved_email', freshData.email);
         await SecureStore.setItemAsync('phone', freshData.phone);
         await SecureStore.setItemAsync('user_id', userId);
+      } else {
+        throw new Error("Target payload contains an un-parsable data format schema.");
       }
-    } catch (error) {
+
+    } catch (error: any) {
       console.error("🚨 Profile Sync Error:", error);
+      // Fallback alert logic if local fallback profiles are completely empty
       if (!profile.fullName) {
-        Alert.alert("Sync Failure", "Could not synchronize account profile details with the cloud.");
+        Alert.alert(
+          "Sync Failure", 
+          "Could not synchronize account profile details with the cloud environment safely."
+        );
       }
     } finally {
       setLoading(false);
