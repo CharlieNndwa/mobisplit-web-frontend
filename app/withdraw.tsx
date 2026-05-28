@@ -107,13 +107,13 @@ export default function WithdrawScreen() {
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.cardLabel}>AVAILABLE DISBURSEMENT POOL</Text>
+        <Text style={styles.cardLabel}>AVAILABLE BALANCE:</Text>
         <Text style={styles.cardVal}>
           R {parseFloat((currentBalance as string) || "0.00").toFixed(2)}
         </Text>
       </View>
 
-      <Text style={styles.label}>DISBURSEMENT MODE METHOD</Text>
+      <Text style={styles.label}>WITHDRAWAL METHOD</Text>
       <View style={styles.pickerContainer}>
         <Picker
           selectedValue={withdrawalMethod}

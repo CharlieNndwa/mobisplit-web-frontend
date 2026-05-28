@@ -43,7 +43,7 @@ export default function InboxScreen() {
           
           <LegoMessage 
             title="Welcome Gift!"
-            body="First two rides are free for new users"
+            body="First two logins without subscription are free for new users"
             icon={Tag}
             color="#F59E0B"
             shadowColor="#92400E"

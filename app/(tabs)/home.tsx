@@ -121,7 +121,7 @@ useEffect(() => {
           // Present Welcome Alert containing Gift Box Component Context immediately
           Alert.alert(
             "🎁 Welcome Gift!",
-            "Your first two rides are completely free. Enjoy your complimentary MobiSplit journey!",
+            "Your first two logins without subscription are free. Enjoy your complimentary MobiSplit journey!",
             [{ text: "Awesome, thanks!" }]
           );
         }

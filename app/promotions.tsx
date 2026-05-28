@@ -50,8 +50,8 @@ export default function PromotionsScreen() {
         
         {/* 🪙 "First 2 Free" logic applied */}
         <PromoCard 
-          title="FREE RIDE PASS"
-          desc="Your first 2 trips are R0.00! Valid for all local rides."
+          title="FREE LOGIN WITHOUT SUBSCRIPTION PASS"
+          desc="Your first 2 logins without subscription are free! Valid for all local rides."
           isAutoApplied={true}
           color="#10B981"
           shadowColor="#064E3B"
