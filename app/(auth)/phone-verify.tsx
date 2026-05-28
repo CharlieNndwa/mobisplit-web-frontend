@@ -1,31 +1,41 @@
-import React, { useState } from 'react';
-import { 
-  StyleSheet, View, Text, TextInput, TouchableOpacity, 
-  Alert, ActivityIndicator, KeyboardAvoidingView, Platform 
-} from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { MotiView, AnimatePresence } from 'moti';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft, CheckCircle2 } from 'lucide-react-native';
+import React, { useState } from "react";
+import {
+  StyleSheet,
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  Alert,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+} from "react-native";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import { MotiView, AnimatePresence } from "moti";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { ChevronLeft, CheckCircle2 } from "lucide-react-native";
 
-const BACKEND_URL = "https://daringly-tacky-anemic.ngrok-free.dev/api/auth";
+const API_URL =
+  process.env.EXPO_PUBLIC_API_URL ||
+  "https://mobisplit-backend-production.up.railway.app";
+const BACKEND_URL = `${API_URL}/api/auth`;
 
 export default function PhoneVerifyScreen() {
   const router = useRouter();
   const { phone } = useLocalSearchParams();
-  const [code, setCode] = useState('');
+  const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [showToast, setShowToast] = useState(false);
 
   const handleVerifyOTP = async () => {
     if (code.length !== 6 || loading) return;
-    
+
     setLoading(true);
     try {
       // 1. Verify the OTP with Twilio via Backend
       const response = await fetch(`${BACKEND_URL}/verify-otp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone_number: phone, code: code }),
       });
 
@@ -36,8 +46,8 @@ export default function PhoneVerifyScreen() {
 
         // 2. Check if user already exists in the database
         const checkRes = await fetch(`${BACKEND_URL}/check-user`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ phone_number: phone }),
         });
         const checkData = await checkRes.json();
@@ -45,18 +55,18 @@ export default function PhoneVerifyScreen() {
         // Wait for the toast animation before navigating[cite: 13]
         setTimeout(() => {
           setShowToast(false);
-          
+
           if (checkData.exists) {
             // User exists: Send to Sign In to verify Email/Password
-            router.push({ 
-              pathname: "/(auth)/sign-in", 
-              params: { phone, email: checkData.email } 
+            router.push({
+              pathname: "/(auth)/sign-in",
+              params: { phone, email: checkData.email },
             });
           } else {
             // New User: Send to Password Setup
-            router.push({ 
-              pathname: '/(auth)/password-setup', 
-              params: { phone } 
+            router.push({
+              pathname: "/(auth)/password-setup",
+              params: { phone },
             });
           }
         }, 1500);
@@ -64,7 +74,10 @@ export default function PhoneVerifyScreen() {
         Alert.alert("Verification Failed", data.error || "Invalid code.");
       }
     } catch (error) {
-      Alert.alert("Error", "Could not connect to server. Check your connection.");
+      Alert.alert(
+        "Error",
+        "Could not connect to server. Check your connection.",
+      );
     } finally {
       setLoading(false);
     }
@@ -74,7 +87,7 @@ export default function PhoneVerifyScreen() {
     <SafeAreaView style={styles.container}>
       <AnimatePresence>
         {showToast && (
-          <MotiView 
+          <MotiView
             from={{ translateY: -100, opacity: 0 }}
             animate={{ translateY: 50, opacity: 1 }}
             exit={{ translateY: -100, opacity: 0 }}
@@ -90,9 +103,15 @@ export default function PhoneVerifyScreen() {
         <ChevronLeft color="#0F172A" size={28} />
       </TouchableOpacity>
 
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+      >
         <View style={styles.content}>
-          <MotiView from={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+          <MotiView
+            from={{ opacity: 0, transform: [{ translateY: 10 }] }}
+            animate={{ opacity: 1, transform: [{ translateY: 0 }] }}
+          >
             <Text style={styles.title}>Verify Phone</Text>
             <Text style={styles.subtitle}>Enter the code sent to {phone}</Text>
           </MotiView>
@@ -110,13 +129,17 @@ export default function PhoneVerifyScreen() {
             />
           </View>
 
-          <TouchableOpacity 
-            style={styles.legoBtn} 
-            onPress={handleVerifyOTP} 
+          <TouchableOpacity
+            style={styles.legoBtn}
+            onPress={handleVerifyOTP}
             disabled={loading || code.length < 6}
           >
-            <View style={[styles.legoBtnMain, { backgroundColor: '#000' }]}>
-              {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.legoBtnText}>Verify & Continue</Text>}
+            <View style={[styles.legoBtnMain, { backgroundColor: "#000" }]}>
+              {loading ? (
+                <ActivityIndicator color="#FFF" />
+              ) : (
+                <Text style={styles.legoBtnText}>Verify & Continue</Text>
+              )}
             </View>
             <View style={styles.legoShadow} />
           </TouchableOpacity>
@@ -127,32 +150,68 @@ export default function PhoneVerifyScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFF' },
+  container: { flex: 1, backgroundColor: "#FFF" },
   toaster: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
-    left: '10%',
-    right: '10%',
-    backgroundColor: '#059669',
+    left: "10%",
+    right: "10%",
+    backgroundColor: "#059669",
     padding: 15,
     borderRadius: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     zIndex: 999,
     borderWidth: 2,
-    borderColor: '#000',
+    borderColor: "#000",
     elevation: 5,
   },
-  toasterText: { color: '#FFF', fontWeight: '900', marginLeft: 10, fontSize: 16 },
+  toasterText: {
+    color: "#FFF",
+    fontWeight: "900",
+    marginLeft: 10,
+    fontSize: 16,
+  },
   backBtn: { padding: 20 },
   content: { paddingHorizontal: 25, flex: 1 },
-  title: { fontSize: 32, fontWeight: '900', color: '#0F172A' },
-  subtitle: { fontSize: 16, color: '#64748B', marginTop: 10, marginBottom: 40 },
-  inputContainer: { height: 80, backgroundColor: '#F8FAFC', borderRadius: 20, borderWidth: 2, borderColor: '#000', justifyContent: 'center', marginBottom: 30 },
-  otpInput: { fontSize: 36, fontWeight: '900', textAlign: 'center', letterSpacing: 12, color: '#0F172A' },
-  legoBtn: { height: 65, position: 'relative' },
-  legoBtnMain: { flex: 1, borderRadius: 16, borderWidth: 2, borderColor: '#000', justifyContent: 'center', alignItems: 'center', zIndex: 2 },
-  legoBtnText: { color: '#FFF', fontSize: 18, fontWeight: '900' },
-  legoShadow: { position: 'absolute', top: 4, left: 4, right: -4, bottom: -4, backgroundColor: '#000', borderRadius: 16, zIndex: 1 }
+  title: { fontSize: 32, fontWeight: "900", color: "#0F172A" },
+  subtitle: { fontSize: 16, color: "#64748B", marginTop: 10, marginBottom: 40 },
+  inputContainer: {
+    height: 80,
+    backgroundColor: "#F8FAFC",
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: "#000",
+    justifyContent: "center",
+    marginBottom: 30,
+  },
+  otpInput: {
+    fontSize: 36,
+    fontWeight: "900",
+    textAlign: "center",
+    letterSpacing: 12,
+    color: "#0F172A",
+  },
+  legoBtn: { height: 65, position: "relative" },
+  legoBtnMain: {
+    flex: 1,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: "#000",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 2,
+  },
+  legoBtnText: { color: "#FFF", fontSize: 18, fontWeight: "900" },
+  legoShadow: {
+    position: "absolute",
+    top: 4,
+    left: 4,
+    right: -4,
+    bottom: -4,
+    backgroundColor: "#000",
+    borderRadius: 16,
+    zIndex: 1,
+  },
 });

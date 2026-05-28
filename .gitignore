@@ -7,6 +7,11 @@ app/videos/
 app/*.pdf
 *.log
 hs_err_*
+dist/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.env*.local
 
 # Whitelist your core required UI assets explicitly
 !app/images/herro.png

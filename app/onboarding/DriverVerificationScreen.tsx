@@ -4,6 +4,10 @@ import { ShieldCheck, Camera, FileText, ChevronRight, CheckCircle2 } from 'lucid
 import { MotiView } from 'moti';
 import { useRouter } from 'expo-router';
 
+// Replace your old ngrok lines with this dynamic look-up:
+const API_BASE = process.env.EXPO_PUBLIC_API_URL || "https://mobisplit-backend-production.up.railway.app";
+
+
 export default function DriverVerificationScreen() {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
@@ -12,7 +16,7 @@ export default function DriverVerificationScreen() {
         setLoading(true);
         try {
             // This hits your backend to set is_verified: true[cite: 40]
-            const response = await fetch('https://daringly-tacky-anemic.ngrok-free.dev/api/driver/verify', {
+            const response = await fetch(`${API_BASE}/api/driver/verify`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ driverId: 'CURRENT_SESSION_ID', status: true })

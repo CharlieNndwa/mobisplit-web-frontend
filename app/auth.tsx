@@ -7,7 +7,7 @@ import { Fingerprint, Mail, Lock, User, Phone, ChevronRight, Eye, EyeOff } from 
 import { MotiView, AnimatePresence } from 'moti'; 
 import { LinearGradient } from 'expo-linear-gradient';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://daringly-tacky-anemic.ngrok-free.dev/api/auth";
+const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://mobisplit-backend-production.up.railway.app/api/auth";
 const { width } = Dimensions.get('window');
 
 // 🐯 ADDED: Robust Top-Center Toaster

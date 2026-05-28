@@ -30,13 +30,15 @@ import MaskedView from "@react-native-masked-view/masked-view";
 import * as Sharing from "expo-sharing";
 import { Asset } from "expo-asset";
 
+// Replace your old ngrok lines with this dynamic look-up:
+const API_BASE = process.env.EXPO_PUBLIC_API_URL || "https://mobisplit-backend-production.up.railway.app";
 // Updated to the requested path
 const HERO_IMAGE =
   "https://t4.ftcdn.net/jpg/05/15/30/57/360_F_515305790_58wwwoB0DbvAidgDZbK7U3ZPhUvvfjzy.jpg";
 
 const LOGO_IMG = require("../app/images/logo__3_-removebg-preview.png");
 
-const BROKER_CERT = require("../app/CamScanner 2026-02-03 11.31.pdf");
+const BROKER_CERT = "https://drive.google.com/file/d/1C488A1R_rBg1iUe00EbTbti2tsKU0E3a/view?usp=drive_link";
 
 export default function InsuranceScreen() {
   const router = useRouter();
@@ -49,6 +51,23 @@ export default function InsuranceScreen() {
     policyNumber: "",
     expiry: "",
   });
+
+  const handleOpenPDF = async () => {
+    try {
+      // Check if the phone can open web URLs
+      const supported = await Linking.canOpenURL(BROKER_CERT);
+      
+      if (supported) {
+        // Open the Google Drive link directly in the phone's browser/Drive app
+        await Linking.openURL(BROKER_CERT);
+      } else {
+        Alert.alert("Error", "Cannot open this link on your device.");
+      }
+    } catch (error) {
+      console.error("PDF Open Error:", error);
+      Alert.alert("Error", "Could not open the certificate at this time.");
+    }
+  };
 
   const handleSaveInsurance = async () => {
     // 1. Validation
@@ -76,7 +95,7 @@ export default function InsuranceScreen() {
       // 3. API Call to your PostgreSQL Backend
       // Use your ngrok URL to allow your physical phone to talk to your local server
       const response = await fetch(
-        "https://daringly-tacky-anemic.ngrok-free.dev/api/insurance/save",
+        `${API_BASE}/api/insurance/save`,
         {
           method: "POST",
           headers: {
@@ -126,24 +145,6 @@ export default function InsuranceScreen() {
     );
   };
 
-  const handleOpenPDF = async () => {
-    try {
-      // 2. Load the asset and get a local URI
-      const asset = Asset.fromModule(BROKER_CERT);
-      await asset.downloadAsync();
-
-      if (asset.localUri) {
-        // 3. Open the native sharing/preview sheet
-        await Sharing.shareAsync(asset.localUri, {
-          mimeType: "application/pdf",
-          dialogTitle: "Broker Qualification Certificate",
-          UTI: "com.adobe.pdf", // for iOS support
-        });
-      }
-    } catch (error) {
-      Alert.alert("Error", "Could not open the certificate at this time.");
-    }
-  };
 
   return (
     <View style={styles.container}>

@@ -15,9 +15,13 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import * as SecureStore from "expo-secure-store";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { authAPI } from "../../config/api"; // 🚀 Clean API Import
 
 // 🪙 Define width and height at the top level
 const { width } = Dimensions.get("window");
+const API_URL =
+  process.env.EXPO_PUBLIC_API_URL ||
+  "https://mobisplit-backend-production.up.railway.app";
 
 export default function SignInScreen() {
   const router = useRouter();
@@ -30,7 +34,7 @@ export default function SignInScreen() {
   // 🪙 State for password visibility
   const [showPassword, setShowPassword] = useState(false);
 
-  const handleSignIn = async () => {
+const handleSignIn = async () => {
     const emailString = String(email).trim().toLowerCase();
 
     if (!emailString || !password) {
@@ -42,70 +46,115 @@ export default function SignInScreen() {
 
     setLoading(true);
     try {
-      const response = await fetch(
-        "https://daringly-tacky-anemic.ngrok-free.dev/api/auth/login",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: emailString, password }),
-        },
-      );
+      // 🚀 CENTRALIZED AXIOS AUTH CALL
+      const response = await authAPI.login({ email: emailString, password });
+      const data = response.data;
 
-      // 💎 A++ LOGIC: Handle Unverified Status (HTTP 403)
-      if (response.status === 403) {
-        return Alert.alert(
-          "Account Not Verified",
-          "Please check your inbox and click the verification link to activate your account.",
-        );
-      }
-
-      const data = await response.json();
-
-      // 🪙 UPGRADED: Add this directly inside your successful login check inside handleSignIn()
       if (data.success) {
         // Save core authentication tokens and identifiers
-        await SecureStore.setItemAsync("user_token", data.token);
-        await SecureStore.setItemAsync("user_id", data.user.id);
-        await SecureStore.setItemAsync("user_full_name", data.user.full_name);
-
-        // Set initial driver status values from backend response
-        await SecureStore.setItemAsync(
-          "is_verified_driver",
-          String(data.user.is_driver),
-        );
-
-        // Determine Routing Intersection
-        const savedUserType = await SecureStore.getItemAsync("user_type");
-
-        if (!savedUserType) {
-          // If no onboarding role choice is registered locally, send to role picker screen
-          router.replace("/(auth)/user-type");
-        } else if (
-          savedUserType === "driver" &&
-          data.user.is_driver === false
-        ) {
-          router.replace("/onboarding/driver-setup");
-        } else {
-          router.replace("/(tabs)/home");
+        if (data.token) {
+          await SecureStore.setItemAsync("user_token", data.token);
         }
+
+        // 🪙 CRITICAL FIX: Resolve ID property schema variants safely
+        const backendUserId = data.user?.id || data.user?._id;
+        if (backendUserId) {
+          await SecureStore.setItemAsync("user_id", String(backendUserId));
+        }
+
+        // Resolve name payload structures safely
+        const resolvedName = data.user?.fullName || data.user?.full_name || "";
+        if (resolvedName) {
+          await SecureStore.setItemAsync("user_full_name", resolvedName);
+        }
+
+        // Cache baseline fields to optimize layout rendering
+        if (data.user?.email) {
+          await SecureStore.setItemAsync("saved_email", String(data.user.email).toLowerCase().trim());
+        }
+        if (data.user?.phone) {
+          await SecureStore.setItemAsync("phone", String(data.user.phone));
+        }
+
+        // Set initial driver status values from backend response safely
+        const isDriverUser = data.user?.isDriver || data.user?.is_driver || false;
+        await SecureStore.setItemAsync("is_verified_driver", String(isDriverUser));
+
+        // Determine identity and set the user_type session value explicitly
+        if (isDriverUser === true) {
+          await SecureStore.setItemAsync("user_type", "driver");
+        } else {
+          await SecureStore.setItemAsync("user_type", "rider");
+        }
+
+        // 🚗 ROUTE DIRECTLY TO WELCOME SCREEN AFTER SIGN IN
+        router.replace("/welcome");
+        
       } else {
         Alert.alert(
           "Login Failed",
           data.error || "Please check your email and password.",
         );
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error("Sign-In Error:", e);
-      Alert.alert("Error", "Server unreachable. Check your Ngrok tunnel.");
+
+      if (e.response && e.response.status === 403) {
+        Alert.alert(
+          "Account Not Verified",
+          "Please check your inbox and click the verification link to activate your account.",
+        );
+      } else {
+        const serverMessage =
+          e.response?.data?.error ||
+          "Server unreachable. Please check your network or Ngrok tunnel.";
+        Alert.alert("Error", serverMessage);
+      }
     } finally {
       setLoading(false);
     }
   };
 
+  const handleForgotPassword = async () => {
+  if (!email) {
+    Alert.alert(
+      "Email Required", 
+      "Please enter your registered email address in the field above to receive a reset token."
+    );
+    return;
+  }
+
+  setLoading(true);
+  try {
+    // 🚀 INJECT AXIOS FORGOT PASSWORD ROUTE DISPATCHER
+    const response = await authAPI.forgotPassword(email.trim().toLowerCase());
+    const data = response.data;
+
+    if (data.success) {
+      Alert.alert(
+        "Reset Token Sent",
+        data.message || "Check your mailbox for instructions to secure your profile access parameters.",
+        [{ text: "OK" }]
+      );
+    } else {
+      Alert.alert("Reset Failed", data.error || "Could not dispatch reset token link.");
+    }
+  } catch (err: any) {
+    console.error("🚨 Forgot Password Stream Interrupted:", err);
+    
+    // Fall back safely to internal Axios error layers if present
+    const backendError = err.response?.data?.error || err.response?.data?.message;
+    Alert.alert(
+      "Request Failed",
+      backendError || "Unable to reach the authentication sub-clusters. Confirm your backend instance is running."
+    );
+  } finally {
+    setLoading(false);
+  }
+};
+
   return (
     <SafeAreaView style={styles.container}>
-      
-
       <View style={styles.content}>
         <Text style={styles.title}>
           {phone ? "Link Account" : "Welcome Back"}
@@ -146,7 +195,21 @@ export default function SignInScreen() {
               color="#64748B"
             />
           </TouchableOpacity>
+          
         </View>
+        <TouchableOpacity
+            onPress={handleForgotPassword}
+            style={{
+              alignSelf: "flex-end",
+              marginTop: 5,
+              marginBottom: 20,
+              paddingVertical: 5,
+            }}
+          >
+            <Text style={{ color: "#64748B", fontWeight: "700", fontSize: 14 }}>
+              Forgot Password?
+            </Text>
+          </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.legoBtn}

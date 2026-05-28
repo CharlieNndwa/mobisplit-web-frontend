@@ -30,7 +30,7 @@ import * as SecureStore from "expo-secure-store";
 import QRCode from "react-native-qrcode-svg";
 
 const { width } = Dimensions.get("window");
-const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://daringly-tacky-anemic.ngrok-free.dev";
+const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://mobisplit-backend-production.up.railway.app";
 
 export default function AffiliateScreen() {
   const [refCode, setRefCode] = useState<string | null>(null);

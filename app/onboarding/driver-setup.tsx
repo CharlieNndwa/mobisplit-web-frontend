@@ -36,6 +36,10 @@ import {
   UserCircle,
 } from "lucide-react-native";
 
+// Replace your old ngrok lines with this dynamic look-up:
+const API_BASE = process.env.EXPO_PUBLIC_API_URL || "https://mobisplit-backend-production.up.railway.app";
+
+
 const SA_CITIES = [
   { id: "1", name: "Johannesburg, GP" },
   { id: "2", name: "Pretoria, GP" },
@@ -51,7 +55,7 @@ const SA_CITIES = [
 ];
 
 const BACKEND_URL =
-  "https://daringly-tacky-anemic.ngrok-free.dev/api/driver/apply";
+    `${API_BASE}/api/driver/apply`;
 const HERO_IMAGE = require("../images/ChatGPT Image May 2, 2026, 12_14_36 PM.png");
 
 export default function DriverSetupScreen() {
@@ -249,7 +253,7 @@ export default function DriverSetupScreen() {
       });
 
       const response = await fetch(
-        "https://daringly-tacky-anemic.ngrok-free.dev/api/driver/apply",
+        `${API_BASE}/api/driver/apply`,
         {
           method: "POST",
           body: formData,

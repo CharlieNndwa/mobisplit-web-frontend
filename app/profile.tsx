@@ -12,7 +12,9 @@ import {
   ChevronLeft, Camera, User, Mail, Phone, Save, Edit3, PlusCircle, Fingerprint, FileText, Tag, Car
 } from 'lucide-react-native';
 
-const BACKEND_URL = "https://daringly-tacky-anemic.ngrok-free.dev/api";
+// Replace your old ngrok lines with this dynamic look-up:
+const API_BASE = process.env.EXPO_PUBLIC_API_URL || "https://mobisplit-backend-production.up.railway.app";
+const BACKEND_URL = `${API_BASE}/api`;
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -40,25 +42,34 @@ useEffect(() => {
     fetchProfileData();
   }, []);
 
-  const fetchProfileData = async () => {
+ const fetchProfileData = async () => {
     try {
       setLoading(true);
       
-      // 1. FAST LOAD: Get cached keys from local secure storage layout first
-      const cachedName = await SecureStore.getItemAsync('fullName');
-      const cachedEmail = await SecureStore.getItemAsync('email');
+      // 1. FAST LOAD: Get cached keys matching global authentication naming rules
+      const cachedName = await SecureStore.getItemAsync('user_full_name');
+      const cachedEmail = await SecureStore.getItemAsync('saved_email');
       const cachedPhone = await SecureStore.getItemAsync('phone');
       
-      // Look for explicit userId or fallback to parsing the compound 'user' object from sign-up
-      let userId = await SecureStore.getItemAsync('userId');
-      if (!userId || userId === "null") {
+      // Thorough ID lookups to completely neutralize the 404 Server State response
+      let userId = await SecureStore.getItemAsync('user_id');
+      if (!userId || userId === "null" || userId === "undefined") {
+        userId = await SecureStore.getItemAsync('userId');
+      }
+      
+      if (!userId || userId === "null" || userId === "undefined") {
         const storedUserObj = await SecureStore.getItemAsync('user');
         if (storedUserObj) {
-          const parsedUser = JSON.parse(storedUserObj);
-          userId = parsedUser?.id || parsedUser?.userId;
+          try {
+            const parsedUser = JSON.parse(storedUserObj);
+            userId = parsedUser?.id || parsedUser?.userId || parsedUser?._id;
+          } catch (e) {
+            console.error("Failed to parse compound user payload:", e);
+          }
         }
       }
 
+      // Display what we have right away so the user isn't stuck looking at a blank screen
       if (cachedName || cachedEmail || cachedPhone) {
         setProfile({
           fullName: cachedName || "",
@@ -68,51 +79,55 @@ useEffect(() => {
         });
       }
 
-      // 2. CHECK ID FINGERPRINT: Safeguard logic to ensure auth states exist
-      if (!userId || userId === "null") {
-        console.warn("MobiSplit: No valid userId found in local secure storage configurations.");
+      // 2. CHECK ID SECURITY: If no valid ID is stored, stop the operation before a 404 fires
+      if (!userId || userId === "null" || userId === "undefined") {
+        console.warn("MobiSplit Warning: Fetch aborted. A valid user identity fingerprint does not exist yet.");
         setLoading(false);
         return;
       }
 
-      // 3. DATABASE SYNC: Correct endpoint path from /profile/ to /user/ 
+      console.log(`🔄 Querying live database profile statistics for target: ${userId}`);
+
+      // 3. DATABASE SYNC: Dynamic lookup against user document collection
       const response = await fetch(`${BACKEND_URL}/user/${userId}`); 
-      if (!response.ok) throw new Error(`Server responded with state: ${response.status}`);
+      if (!response.ok) {
+        throw new Error(`Server responded with state: ${response.status}`);
+      }
 
       const result = await response.json();
 
       if (result.success && result.user) {
-        // 🪙 FIX: Map the specific keys aligned directly with userController response definitions
+        // Map data safely based on standard controller backend key maps
         const freshData = {
-          fullName: result.user.fullName || "",
+          fullName: result.user.fullName || result.user.full_name || "",
           email: result.user.email || "",
           phone: result.user.phone || "",
-          profileImage: result.user.profilePic || null
+          profileImage: result.user.profilePic || result.user.profile_image || null
         };
 
         setProfile(freshData);
-        setIsDriver(!!result.user.isDriver);
+        setIsDriver(!!result.user.isDriver || !!result.user.is_driver);
         
         if (result.driver) {
           setDriverData({
-            vehicleMake: result.driver.vehicleMake || "",
-            vehicleModel: result.driver.vehicleModel || "",
+            vehicleMake: result.driver.vehicleMake || result.driver.vehicle_make || "",
+            vehicleModel: result.driver.vehicleModel || result.driver.vehicle_model || "",
             plate: result.driver.plate || "",
-            prdpImage: result.driver.prdpImage || null,
-            licenseImage: result.driver.licenseImage || null
+            prdpImage: result.driver.prdpImage || result.driver.prdp_image || null,
+            licenseImage: result.driver.licenseImage || result.driver.license_image || null
           });
         }
 
-        // Synchronize local fallback cache storage parameters
-        await SecureStore.setItemAsync('fullName', freshData.fullName);
-        await SecureStore.setItemAsync('email', freshData.email);
+        // Keep local cache objects synced using standard layout keys
+        await SecureStore.setItemAsync('user_full_name', freshData.fullName);
+        await SecureStore.setItemAsync('saved_email', freshData.email);
         await SecureStore.setItemAsync('phone', freshData.phone);
-        await SecureStore.setItemAsync('userId', userId);
+        await SecureStore.setItemAsync('user_id', userId);
       }
     } catch (error) {
       console.error("🚨 Profile Sync Error:", error);
       if (!profile.fullName) {
-        Alert.alert("Sync Error", "Could not reach database server. Displaying local data cache.");
+        Alert.alert("Sync Failure", "Could not synchronize account profile details with the cloud.");
       }
     } finally {
       setLoading(false);

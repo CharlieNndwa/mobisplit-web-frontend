@@ -7,11 +7,6 @@
     "icon": "./assets/images/favicon.png",
     "scheme": "mobisplitapp",
     "userInterfaceStyle": "automatic",
-    "splash": {
-      "image": "./assets/images/favicon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
     "ios": {
       "supportsTablet": true
     },
@@ -34,21 +29,32 @@
       "expo-secure-store",
       "@react-native-google-signin/google-signin",
       [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/favicon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff"
+        }
+      ],
+      [
+        "./node_modules/react-native-google-mobile-ads/app.plugin.js",
+        {
+          "androidAppId": "ca-app-pub-6268822114678527~1297375618",
+          "iosAppId": "ca-app-pub-3940256099942544~1458002511"
+        }
+      ],
+      [
         "expo-build-properties",
         {
           "android": {
             "ndkVersion": "26.1.10909408",
             "packagingOptions": {
-              "pickFirst": ["**/libcrypto.so", "**/libssl.so"]
+              "pickFirst": [
+                "**/libcrypto.so",
+                "**/libssl.so"
+              ]
             }
           }
-        }
-      ],
-      [
-        "react-native-google-mobile-ads",
-        {
-          "androidAppId": "ca-app-pub-6268822114678527~1297375618",
-          "iosAppId": "ca-app-pub-3940256099942544~1458002511"
         }
       ]
     ]

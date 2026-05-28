@@ -7,6 +7,7 @@ import {
   Home,
   LayoutGrid,
   ClipboardList,
+  BookOpen,
   Wallet,
   UserCircle,
 } from "lucide-react-native";
@@ -65,6 +66,15 @@ export default function TabLayout() {
           options={{
             title: "Services",
             tabBarIcon: ({ color }) => <LayoutGrid size={22} color={color} />,
+          }}
+        />
+
+        {/* 3. WAITING ROOM / LOUNGE (Inserted right after Services) */}
+        <Tabs.Screen
+          name="waiting-room"
+          options={{
+            title: "Lounge",
+            tabBarIcon: ({ color }) => <BookOpen size={22} color={color} />,
           }}
         />
 

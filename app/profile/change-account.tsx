@@ -14,7 +14,7 @@ import { useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { ChevronLeft, Trash2, ShieldAlert } from "lucide-react-native";
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://daringly-tacky-anemic.ngrok-free.dev";
+const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://mobisplit-backend-production.up.railway.app";
 const HERO_IMAGE =
   "https://www.shutterstock.com/image-photo/programmers-hand-tapping-on-file-600nw-2450533077.jpg";
 

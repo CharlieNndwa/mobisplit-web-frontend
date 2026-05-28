@@ -13,12 +13,17 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { authAPI } from "../../config/api"; // 🪙
+
+const API_URL =
+  process.env.EXPO_PUBLIC_API_URL ||
+  "https://mobisplit-backend-production.up.railway.app";
 
 export default function SignUpScreen() {
   const router = useRouter();
   const { phone: incomingPhone } = useLocalSearchParams();
   const [showPassword, setShowPassword] = useState(false);
-  const [password, setPassword] = useState('');
+  const [password, setPassword] = useState("");
   const [secureText, setSecureText] = useState(true);
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
@@ -28,7 +33,7 @@ export default function SignUpScreen() {
     password: "",
   });
 
- const handleSignUp = async () => {
+  const handleSignUp = async () => {
     if (!form.fullName || !form.email || !form.phone || !form.password) {
       Alert.alert("Missing Info", "All fields are required.");
       return;
@@ -36,40 +41,51 @@ export default function SignUpScreen() {
 
     setLoading(true);
     try {
-      const response = await fetch(
-        "https://daringly-tacky-anemic.ngrok-free.dev/api/auth/register",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(form),
-        },
-      );
+      // 🚀 AXIOS ENGINE SUBMISSION PIPELINE
+      const response = await authAPI.register({
+        fullName: form.fullName,
+        email: form.email,
+        phone: form.phone,
+        password: form.password,
+      });
 
-      const data = await response.json();
+      const data = response.data;
 
       if (data.success) {
-        // 💎 A++ LOGIC: Account is unverified. Move to Sign-In with clear instructions.
+        // 🚗 CLEAN & PROFESSIONAL ROUTING ALERT
         Alert.alert(
-          "Verify Your Email",
-          "Registration successful! We've sent a link to your email. Please verify it to activate your account.",
+          "🚗 Account Created",
+          "Your account has been created successfully! Please choose your role to continue setup.",
           [
             {
-              text: "OK",
+              text: "Continue",
               onPress: async () => {
                 try {
-                  // 🪙 A++ STATE MANAGEMENT: Wipe stale onboarding indicators clean
+                  // Clear any leftover configuration records safely
                   await SecureStore.deleteItemAsync("user_type");
                   await SecureStore.deleteItemAsync("needs_driver_setup");
                   await SecureStore.deleteItemAsync("is_verified_driver");
+
+                  // 🪙 CRITICAL FIX: Persist Session Tokens & Identity Vectors to kill 404s
+                  if (data.token) {
+                    await SecureStore.setItemAsync("user_token", data.token);
+                  }
                   
-                  // Pre-save normalized email for the sign-in input mount
-                  await SecureStore.setItemAsync("saved_email", form.email.toLowerCase());
-                  
-                  // Force stack replace to sign-in view
-                  router.replace("/(auth)/sign-in");
+                  const verifiedId = data.user?.id || data.user?._id;
+                  if (verifiedId) {
+                    await SecureStore.setItemAsync("user_id", String(verifiedId));
+                  }
+
+                  // Keep the profile contexts cached for swift screen mounting
+                  await SecureStore.setItemAsync("saved_email", form.email.toLowerCase().trim());
+                  await SecureStore.setItemAsync("phone", form.phone.trim());
+                  await SecureStore.setItemAsync("user_full_name", form.fullName.trim());
+
+                  // 🪙 Routes cleanly to role selection setup
+                  router.replace("/user-type");
                 } catch (storeError) {
                   console.error("SecureStore Reset Error:", storeError);
-                  router.replace("/(auth)/sign-in");
+                  router.replace("/user-type");
                 }
               },
             },
@@ -78,16 +94,21 @@ export default function SignUpScreen() {
       } else {
         Alert.alert(
           "Registration Failed",
-          data.error || "Could not create account.",
+          data.error || "Could not create account. Please try again.",
         );
       }
-    } catch (e) {
-      Alert.alert("Connection Error", "Check if your backend is running.");
+    } catch (e: any) {
+      const backendError = e.response?.data?.error || e.response?.data?.message;
+      Alert.alert(
+        "Registration Error",
+        backendError || "Connection error. Please check if the server is running.",
+      );
     } finally {
       setLoading(false);
     }
   };
 
+  
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView
@@ -129,7 +150,7 @@ export default function SignUpScreen() {
           />
         </View>
 
-       {/* 🪙 UPGRADED PASSWORD LAYOUT WITH INLINE FLEX & ABSOLUTE RIGHT ICON BOUNDARIES */}
+        {/* 🪙 UPGRADED PASSWORD LAYOUT WITH INLINE FLEX & ABSOLUTE RIGHT ICON BOUNDARIES */}
         <View style={styles.passwordInputWrapper}>
           <TextInput
             style={styles.passwordField}
@@ -140,7 +161,7 @@ export default function SignUpScreen() {
             onChangeText={(t) => setForm({ ...form, password: t })}
             autoCapitalize="none"
           />
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.eyeIconWrapper}
             onPress={() => setShowPassword(!showPassword)}
             activeOpacity={0.6}
@@ -218,7 +239,7 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   btnText: { color: "#FFF", fontWeight: "900", fontSize: 16, letterSpacing: 1 },
- /* 🪙 REFACTORED INLINE PASSWORD STRUCTURE */
+  /* 🪙 REFACTORED INLINE PASSWORD STRUCTURE */
   passwordInputWrapper: {
     height: 60,
     backgroundColor: "#F8FAFC",
@@ -240,10 +261,10 @@ const styles = StyleSheet.create({
     height: "100%",
   },
   eyeIconWrapper: {
-    position: 'absolute',
+    position: "absolute",
     right: 16,
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

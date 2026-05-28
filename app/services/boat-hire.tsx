@@ -13,6 +13,9 @@ import { Ship, MapPin, Anchor, ChevronRight } from "lucide-react-native";
 import { useRouter } from "expo-router";
 
 const { height } = Dimensions.get("window");
+// Replace your old ngrok lines with this dynamic look-up:
+const API_BASE = process.env.EXPO_PUBLIC_API_URL || "https://mobisplit-backend-production.up.railway.app";
+
 
 const COASTAL_CITIES = [
   {
@@ -51,7 +54,7 @@ export default function BoatHireScreen() {
     setLoading(true);
     try {
       const res = await fetch(
-        `https://daringly-tacky-anemic.ngrok-free.dev/api/assets?category=Boat&city=${selectedCity.name}`,
+        `${API_BASE}/api/assets?category=Boat&city=${selectedCity.name}`,
       );
       const data = await res.json();
       setBoats(data);

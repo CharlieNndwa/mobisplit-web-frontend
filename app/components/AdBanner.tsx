@@ -1,90 +1,87 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, Dimensions, Image, TouchableOpacity, Linking, FlatList, Animated, Text } from 'react-native';
+import { View, StyleSheet, Dimensions, Image, Text, Animated, FlatList, TouchableOpacity, Linking } from 'react-native';
 
 const { width } = Dimensions.get('window');
-const CAROUSEL_WIDTH = width - 32; // Optimized for adaptive sizing
-const CAROUSEL_HEIGHT = 60; // Standard banner dimensions
+// Margins are perfectly optimized for resource-efficient mobile layouts
+const CAROUSEL_WIDTH = width - 32; 
+const CAROUSEL_HEIGHT = 80; // Increased height slightly to give images maximum breathing room
 
-// Optimized, high-resolution verified image URLs for the slideshow.
-const AD_DATA = [
+const SLIDESHOW_AD_DATA = [
   {
     id: '1',
-    image: 'https://cdn.chemistdirect.co.uk/img/brand_pages/Centrum/New/Centrum-Banner.jpg?66058,39153', // Nike Run Club
+    image: 'https://cdn.chemistdirect.co.uk/img/brand_pages/Centrum/New/Centrum-Banner.jpg?66058,39153',
     url: 'https://www.nike.com',
-    type: 'Advertisement'
+    title: 'ADVERTISEMENTS'
   },
   {
     id: '2',
-    image: 'https://abartacocacola.com/wp-content/uploads/contact-banner.jpg', // Coca-Cola Zero
+    image: 'https://abartacocacola.com/wp-content/uploads/contact-banner.jpg',
     url: 'https://www.coca-cola.com',
-    type: 'Advertisement'
+    title: 'ADVERTISEMENTS'
   },
   {
     id: '3',
-    image: 'https://miro.medium.com/0*xeMP6IcGjGUYSeTs.jpg', // Amazon Prime Video
-    url: 'https://www.primevideo.com',
-    type: 'Advertisement'
+    image: 'https://casperanimations.wordpress.com/wp-content/uploads/2021/05/netflix-4.jpg',
+    url: 'https://www.netflix.com',
+    title: 'ADVERTISEMENTS'
   },
   {
     id: '4',
-    image: 'https://images.ctfassets.net/4cd45et68cgf/6wHlMkLFTfKk3cQrTYnVLL/db092ceae27e7ddf5fedde338f9d9503/Netflix_Banner.png?w=2000', // MiWay Insurance
-    url: 'https://www.netflix.com',
-    type: 'Advertisement'
+    image: 'https://upload.wikimedia.org/wikipedia/commons/4/45/Showmax_Logo.png',
+    url: 'https://www.showmax.com',
+    title: 'ADVERTISEMENTS'
   },
   {
     id: '5',
-    image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTNOh-qlBk03eefpGWJoLuxDpnnxJ24siKBqw&s', // Samsung Galaxy S Series
-    url: 'https://www.samsung.com',
-    type: 'Advertisement'
-  },
+    image: 'https://www.checkers.co.za/assets/images/about-checkers.png',
+    url: 'https://www.checkers.co.za',
+    title: 'ADVERTISEMENTS'
+  }
 ];
 
 export default function AdBannerSlideshow() {
-  const flatListRef = useRef<FlatList>(null);
-  const scrollX = useRef(new Animated.Value(0)).current;
   const [currentIndex, setCurrentIndex] = useState(0);
+  const scrollX = useRef(new Animated.Value(0)).current;
+  const flatListRef = useRef<FlatList>(null);
 
-  // Core Slideshow Rotation Logic
+  // Auto-scrolling carousel loop configuration
   useEffect(() => {
     const timer = setInterval(() => {
-      let nextIndex = (currentIndex + 1) % AD_DATA.length;
+      let nextIndex = currentIndex + 1;
+      if (nextIndex >= SLIDESHOW_AD_DATA.length) {
+        nextIndex = 0;
+      }
       setCurrentIndex(nextIndex);
-      flatListRef.current?.scrollToIndex({ index: nextIndex, animated: true });
-    }, 6000); // Rotates every 6 seconds
+      flatListRef.current?.scrollToIndex({
+        index: nextIndex,
+        animated: true,
+      });
+    }, 5000); // Transitions to next ad slide every 5 seconds
 
-    return () => clearInterval(timer); // Resource cleanup on component unmount
+    return () => clearInterval(timer);
   }, [currentIndex]);
 
-  const handleAdPress = (url: string) => {
-    // Simulates an interactive ad click flow.
-    Linking.openURL(url).catch((err) => console.error('Failed to open ad URL:', err));
-  };
-
-  const renderAdItem = ({ item }: any) => (
-    <TouchableOpacity onPress={() => handleAdPress(item.url)} activeOpacity={0.85}>
-      <View style={styles.bannerContainer}>
-        <Image 
-          source={{ uri: item.image }} 
-          style={styles.adImage}
-          resizeMode="cover"
-        />
-        {/* Dynamic authentic ad tag */}
-        <View style={styles.adBadge}>
-          <Text style={styles.adText}>{item.type}</Text>
-        </View>
+  const renderAdItem = ({ item }: { item: typeof SLIDESHOW_AD_DATA[0] }) => (
+    <TouchableOpacity 
+      activeOpacity={0.9} 
+      onPress={() => Linking.openURL(item.url)}
+      style={styles.bannerContainer}
+    >
+      {/* resizeMode="contain" guarantees the entire asset is visible without clipping edge boundaries */}
+      <Image source={{ uri: item.image }} style={styles.adImage} resizeMode="contain" />
+      <View style={styles.infoOverlay}>
+        <Text style={styles.infoText}>{item.title}</Text>
       </View>
     </TouchableOpacity>
   );
-
-  const keyExtractor = (item: any) => item.id;
 
   return (
     <View style={styles.outerContainer}>
       <FlatList
         ref={flatListRef}
-        data={AD_DATA}
+        data={SLIDESHOW_AD_DATA}
         renderItem={renderAdItem}
-        keyExtractor={keyExtractor}
+        keyExtractor={(item) => item.id}
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
@@ -112,30 +109,32 @@ const styles = StyleSheet.create({
   bannerContainer: {
     width: CAROUSEL_WIDTH,
     height: CAROUSEL_HEIGHT,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
+    backgroundColor: '#0b0f19', // Dark premium placeholder background to beautifully match transparent branding logs
+    borderRadius: 12,
     overflow: 'hidden',
     position: 'relative',
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   adImage: {
     width: '100%',
     height: '100%',
   },
-  adBadge: {
+  infoOverlay: {
     position: 'absolute',
-    bottom: 3,
-    right: 3,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
-    paddingHorizontal: 5,
+    bottom: 4,
+    right: 6,
+    backgroundColor: 'rgba(15, 23, 42, 0.8)',
+    paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
-  adText: {
-    color: '#ffffff',
-    fontSize: 9,
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
-  },
+  infoText: {
+    color: '#94A3B8',
+    fontSize: 8,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  }
 });

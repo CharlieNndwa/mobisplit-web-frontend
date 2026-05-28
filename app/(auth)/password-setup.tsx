@@ -9,7 +9,8 @@ import { MotiView, AnimatePresence } from 'moti';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CheckCircle2 } from 'lucide-react-native';
 
-const BACKEND_URL = "https://daringly-tacky-anemic.ngrok-free.dev/api/auth";
+const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://mobisplit-backend-production.up.railway.app";
+const BACKEND_URL = `${API_URL}/api/auth`;
 
 export default function PasswordSetupScreen() {
   const router = useRouter();

@@ -16,6 +16,8 @@ import * as SecureStore from "expo-secure-store";
 import AdBanner from "../components/AdBanner";
 
 const { width } = Dimensions.get("window");
+// Replace your old ngrok lines with this dynamic look-up:
+const API_BASE = process.env.EXPO_PUBLIC_API_URL || "https://mobisplit-backend-production.up.railway.app";
 
 // 1. Defined Interface to fix "Implicit Any" errors
 interface TripActivity {
@@ -44,7 +46,7 @@ export default function ActivityScreen() {
       }
 
       const response = await fetch(
-        `https://daringly-tacky-anemic.ngrok-free.dev/api/activity/${profileId}`,
+        `${API_BASE}/api/activity/${profileId}`,
       );
       const result = await response.json();
       if (result.success) setTrips(result.data);

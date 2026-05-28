@@ -60,7 +60,7 @@ interface LongDistanceTrip {
 }
 
 // CHANGE THIS:
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL || "http://192.168.8.247:5000";
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL || "https://mobisplit-backend-production.up.railway.app";
 const SOCKET_URL = BASE_URL;
 const API_BASE = `${BASE_URL}/api`;
 
@@ -92,7 +92,7 @@ export default function HomeScreen() {
 
       // Update with your actual NGROK/Backend URL
       const response = await fetch(
-        `https://daringly-tacky-anemic.ngrok-free.dev/api/activity/stats/${userId}`,
+        `${API_BASE}/api/activity/stats/${userId}`,
       );
       const data = await response.json();
 

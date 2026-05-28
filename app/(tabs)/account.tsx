@@ -31,7 +31,7 @@ import {
   ShieldCheck,
 } from "lucide-react-native";
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://daringly-tacky-anemic.ngrok-free.dev";
+const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://mobisplit-backend-production.up.railway.app";
 const IMAGE_KEY = "user_profile_image";
 const DRIVER_STATUS_KEY = "is_verified_driver";
 const USER_NAME_KEY = "user_full_name";

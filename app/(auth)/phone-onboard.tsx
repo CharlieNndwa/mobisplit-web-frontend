@@ -16,7 +16,8 @@ import * as SecureStore from 'expo-secure-store';
 
 WebBrowser.maybeCompleteAuthSession();
 
-const BACKEND_URL = "https://daringly-tacky-anemic.ngrok-free.dev/api/auth";
+const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://mobisplit-backend-production.up.railway.app";
+const BACKEND_URL = `${API_URL}/api/auth`;
 
 export default function PhoneOnboardScreen() {
   const router = useRouter();
@@ -130,7 +131,11 @@ export default function PhoneOnboardScreen() {
               <TouchableOpacity style={styles.iconCircle}><HelpCircle color="#020617" size={24} /></TouchableOpacity>
             </View>
 
-            <MotiView from={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} style={styles.titleSec}>
+            <MotiView 
+  from={{ opacity: 0, transform: [{ translateX: -20 }] }} 
+  animate={{ opacity: 1, transform: [{ translateX: 0 }] }} 
+  style={styles.titleSec}
+>
               <Text style={styles.title}>Welcome to MobiSplit</Text>
               <Text style={styles.subTitle}>Enter your number or use social login.</Text>
             </MotiView>

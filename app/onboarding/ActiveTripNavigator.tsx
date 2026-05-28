@@ -20,19 +20,19 @@ import {
 } from "lucide-react-native";
 import { MotiView } from "moti";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import io, { Socket } from "socket.io-client";
+import { api, getSocket } from "../../config/api"; // 🪙 Centralized API and Socket Import
 import * as Location from "expo-location";
 import axios from "axios";
 
 // 1. Safe Global Base URL Definition
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL || "http://192.168.8.247:5000";
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL || "https://mobisplit-backend-production.up.railway.app";
 
 // 2. Point both Socket and API to use it dynamically
 const SOCKET_URL = BASE_URL;
 const API_BASE = `${BASE_URL}/api`;
 
 export default function ActiveTripNavigator() {
-  const socket = useRef<Socket | null>(null);
+  const socketRef = useRef<any>(null);
   const router = useRouter();
   const { rideId, driverId } = useLocalSearchParams();
 
@@ -46,13 +46,19 @@ export default function ActiveTripNavigator() {
   });
 
   useEffect(() => {
-    socket.current = io(SOCKET_URL);
+    // ⚙️ INITIALIZE STABLE MODULE WEBSOCKET ENGINE
+    const activeSocket = getSocket();
+    socketRef.current = activeSocket;
+
+    if (!activeSocket.connected) {
+      activeSocket.connect();
+    }
 
     const initTrip = async () => {
       try {
-        // 1. Fetch real driver particulars from your specific driver_profiles table
-        const profileRes = await axios.get(
-          `${API_BASE}/driver/profile-sync/${driverId}`,
+        // 1. Fetch real driver particulars from your specific profile sync endpoint using central api client
+        const profileRes = await api.get(
+          `/api/driver/profile-sync/${driverId}`,
         );
         if (profileRes.data.success) {
           setDriverData(profileRes.data.data);
@@ -71,23 +77,30 @@ export default function ActiveTripNavigator() {
             };
             setRegion((prev) => ({ ...prev, ...coords }));
 
-            // Emit to sync with Rider Map
-            socket.current?.emit("driver:location_update", { rideId, coords });
+            // Emit to sync with Rider Map using safe current assignment
+            if (socketRef.current) {
+              socketRef.current.emit("driver:location_update", { rideId, coords });
+            }
           },
         );
 
         setLoading(false);
       } catch (e) {
-        console.error(e);
+        console.error("Trip Initialization Error:", e);
         setLoading(false);
       }
     };
 
     initTrip();
+
+    // 🧹 UNMOUNT CLEANUP: Protect resource bounds
     return () => {
-      socket.current?.disconnect();
+      if (socketRef.current) {
+        socketRef.current.off("driver:location_update");
+        // Keep the instance connected if other views depend on it, or disconnect gracefully
+      }
     };
-  }, [rideId]);
+  }, [rideId, driverId]);
 
 // LIVE LOCATION SHARING FUNCTION (NATIVE BUILDER METHOD)
 const handleShareLiveLocation = async () => {
@@ -114,7 +127,7 @@ const handleShareLiveLocation = async () => {
         {
           text: "Finish",
           onPress: () => {
-            socket.current?.emit("ride:complete_request", { rideId });
+            socketRef.current?.emit("ride:complete_request", { rideId });
             router.replace("/(tabs)/home");
           },
         },

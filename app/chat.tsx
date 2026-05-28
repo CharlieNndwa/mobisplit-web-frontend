@@ -24,7 +24,7 @@ interface ChatProps {
 }
 
 // 1. Safe Global Base URL Definition
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL || "http://192.168.8.247:5000";
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL || "https://mobisplit-backend-production.up.railway.app";
 
 // 2. Point both Socket and API to use it dynamically
 const SOCKET_URL = BASE_URL;

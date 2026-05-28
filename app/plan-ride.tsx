@@ -31,14 +31,15 @@ import {
 import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
 import * as SecureStore from "expo-secure-store";
 import * as Location from "expo-location";
-import io from "socket.io-client"; // Fixes: Cannot find name 'io'
+import { useSocket } from "../context/SocketContext";
+import { io } from "socket.io-client";
 
 const { width, height } = Dimensions.get("window");
 // CHANGE THIS (Around line 36-38):
 const GOOGLE_MAPS_APIKEY = "AIzaSyDQ95xWTXjak5iEL9CjbNYI7hx2zaU20C8";
 
 // CHANGE THIS:
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL || "http://192.168.8.247:5000";
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL || "https://mobisplit-backend-production.up.railway.app";
 const SOCKET_URL = BASE_URL;
 const API_BASE = `${BASE_URL}/api`;
 
@@ -64,6 +65,7 @@ interface RideCategory {
 
 export default function PlanRideScreen() {
   const router = useRouter();
+  const { socket, connectWithAuth } = useSocket();
   const mapRef = useRef<MapView>(null);
   const bottomSheetRef = useRef<BottomSheet>(null);
   const pickupRef = useRef<any>(null);
@@ -140,70 +142,97 @@ export default function PlanRideScreen() {
     fare: 0,
   });
 
-  // 🪙 OPTIMIZED SOCKET & FILTERING LOGIC
-  useEffect(() => {
-    let socket: any;
+// 🪙 OPTIMIZED SOCKET & FILTERING LOGIC
+useEffect(() => {
+  let socketInstance: any;
 
-    const initSocket = async () => {
-      try {
-        const userId = await SecureStore.getItemAsync("userId");
-        // 🪙 Pass category in query for backend room-joining
-        socket = io(SOCKET_URL, {
-          transports: ["websocket"],
-          query: { userId, role: "rider", category: selectedCategory },
-          reconnection: true,
-        });
+  const initSocket = async () => {
+    try {
+      // 🪙 Unified to use standardized key fallback structure
+      const userId = await SecureStore.getItemAsync("user_id") || await SecureStore.getItemAsync("userId");
+      
+      // Initialize standalone socket connection cleanly with verified userId
+      socketInstance = io(SOCKET_URL, {
+        transports: ["websocket"],
+        query: { userId, role: "rider", category: selectedCategory },
+        reconnection: true,
+      });
 
-        socketRef.current = socket;
+      socketRef.current = socketInstance;
 
-        // 🪙 NEW: Listen for moving driver markers
-        socket.on(
-          "driver:location_update",
-          (data: { driverId: string; lat: number; lng: number }) => {
-            setNearbyDrivers((prev) =>
-              prev.map((d) =>
-                d.driverId === data.driverId
-                  ? { ...d, latitude: data.lat, longitude: data.lng }
-                  : d,
-              ),
-            );
-          },
-        );
+      // 🪙 GOLD COIN MAP SYNC MARKER FIX: standardizes keys explicitly to .latitude and .longitude
+      socketInstance.on(
+        "driver:location_update",
+        (data: { driverId: string; lat: number; lng: number; heading?: number }) => {
+          setNearbyDrivers((prev) =>
+            prev.map((d) =>
+              d.driverId === data.driverId
+                ? { ...d, latitude: data.lat, longitude: data.lng, heading: data.heading || d.heading }
+                : d
+            )
+          );
+        }
+      );
 
-        socket.on("drivers:nearby_update", (driverUpdate: any) => {
-          // 🪙 LOGIC: Only add to map if verified and matches category
-          if (
-            driverUpdate.is_verified &&
-            driverUpdate.category === selectedCategory
-          ) {
-            setNearbyDrivers((prev) => {
-              const others = prev.filter(
-                (d) => d.driverId !== driverUpdate.driverId,
-              );
-              return [...others, driverUpdate];
-            });
-          }
-        });
+      socketInstance.on("drivers:nearby_update", (driverUpdate: any) => {
+        const driverId = driverUpdate.driverId || driverUpdate.id;
+        const lat = driverUpdate.coords?.latitude || driverUpdate.latitude || driverUpdate.lat;
+        const lng = driverUpdate.coords?.longitude || driverUpdate.longitude || driverUpdate.lng;
 
-        socket.on("ride:accepted", (driverData: any) => {
-          setRideStatus("accepted");
-          setAssignedDriver(driverData);
-          Alert.alert("Driver Found!", `${driverData.name} is on the way.`);
-        });
-      } catch (error) {
-        console.error("Socket Initialization Error:", error);
+        if (driverUpdate.is_verified && driverUpdate.category === selectedCategory && lat && lng) {
+          setNearbyDrivers((prev) => {
+            const others = prev.filter((d) => d.driverId !== driverId);
+            return [
+              ...others,
+              {
+                driverId,
+                latitude: lat,
+                longitude: lng,
+                heading: driverUpdate.heading || 0,
+                category: driverUpdate.category,
+                is_verified: true,
+              },
+            ];
+          });
+        }
+      });
+
+      socketInstance.on("ride:accepted", (driverData: any) => {
+        setRideStatus("accepted");
+        setAssignedDriver(driverData);
+        Alert.alert("Driver Found!", `${driverData.name} is on the way.`);
+      });
+    } catch (error) {
+      console.error("Socket Initialization Error:", error);
+    }
+  };
+
+  initSocket();
+
+  return () => {
+    if (socketInstance) {
+      socketInstance.off("driver:location_update");
+      socketInstance.off("drivers:nearby_update");
+      socketInstance.off("ride:accepted");
+      socketInstance.disconnect(); // Prevent memory leaks on your 4GB RAM laptop
+    }
+  };
+}, [selectedCategory]);
+
+// 🪙 THIS NEW BLOCK WE ADDED REPLACES THE BROKEN ONE PERFECTLY:
+useEffect(() => {
+  const establishSecureContextConnection = async () => {
+    try {
+      const resolvedUserId = await SecureStore.getItemAsync("user_id") || await SecureStore.getItemAsync("userId");
+      if (resolvedUserId && connectWithAuth) {
+        connectWithAuth(resolvedUserId, "rider");
       }
-    };
-
-    initSocket();
-
-    return () => {
-      if (socket) {
-        socket.off("drivers:nearby_update");
-        socket.disconnect(); // 🪙 Prevent memory leaks on 4GB RAM laptop
-      }
-    };
-  }, [selectedCategory]); // 🪙 Re-connect/Re-filter when category changes
+    } catch (error) {
+      console.error("Error retrieving userId for auth connection:", error);
+    }
+  };
+  establishSecureContextConnection();
+}, [connectWithAuth]);
 
   // 🪙 Base calculation strategy with South African Rand localization
   const calculateFare = (distanceKm: number, categoryId: string): number => {
@@ -224,6 +253,7 @@ export default function PlanRideScreen() {
     const computed = target.basePrice + travelDistance * target.perKmRate;
     return Math.max(target.basePrice, Math.round(computed));
   };
+
 
   // Fetch active account metrics on mount
   useEffect(() => {
@@ -376,10 +406,7 @@ export default function PlanRideScreen() {
   // 🛡️ Complete Pre-Flight Validation inside handleConfirmRide
   const handleConfirmRide = async () => {
     if (!coords.origin || !coords.destination) {
-      Alert.alert(
-        "Missing Route",
-        "Please provide both pickup and destination address points.",
-      );
+      Alert.alert("Missing Route", "Please provide both pickup and destination address points.");
       return;
     }
 
@@ -387,48 +414,40 @@ export default function PlanRideScreen() {
     try {
       const sessionData = await SecureStore.getItemAsync("user_session");
       const session = sessionData ? JSON.parse(sessionData) : null;
-      // Explicitly fall back through both casing versions to maximize compatibility:
+      
+      // Explicitly fall back through standard structural conventions
       const userId =
         session?.user?.id ||
         (await SecureStore.getItemAsync("user_id")) ||
         (await SecureStore.getItemAsync("userId"));
 
       if (!userId) {
-        Alert.alert(
-          "Authentication Required",
-          "User session not found. Please log in again.",
-        );
+        Alert.alert("Authentication Required", "User session not found. Please log in again.");
         setLoading(false);
         return;
       }
 
-      // 🪙 Dynamic pricing verification using state values
       const finalFare = calculateFare(tripData.distance, selectedCategory);
 
       // 🪙 Run wallet threshold safety check if using wallet payment option
       if (paymentMethod === "WALLET") {
-        const balanceRes = await fetch(
-          `${SOCKET_URL}/api/payments/wallet/${userId}`,
-          {
-            headers: { "ngrok-skip-browser-warning": "true" },
-          },
-        );
+        const balanceRes = await fetch(`${SOCKET_URL}/api/payments/wallet/${userId}`, {
+          headers: { "ngrok-skip-browser-warning": "true" },
+        });
         const balanceData = await balanceRes.json();
         const currentBalance = parseFloat(balanceData.balance || "0");
 
         if (currentBalance < finalFare) {
           Alert.alert(
             "Insufficient Wallet Balance",
-            `Your current wallet balance (R${currentBalance.toFixed(2)}) is insufficient for this trip's estimate (R${finalFare.toFixed(2)}).`,
+            `Your wallet balance (R${currentBalance.toFixed(2)}) cannot cover this trip's estimate (R${finalFare.toFixed(2)}).`,
             [
               { text: "Top Up Wallet", onPress: () => router.push("/wallet") },
-              {
-                text: "Switch to Cash",
-                onPress: () => setPaymentMethod("CASH"),
-              },
+              { text: "Switch to Cash", onPress: () => setPaymentMethod("CASH") },
               { text: "Cancel", style: "cancel" },
-            ],
+            ]
           );
+          setLoading(false);
           return;
         }
       }
@@ -455,7 +474,7 @@ export default function PlanRideScreen() {
 
       const data = await response.json();
 
-      if (data.success) {
+      if (response.ok && data.success) {
         // Emit through stateful referenced real-time socket connections
         if (socketRef.current) {
           socketRef.current.emit("requestRide", {
@@ -477,18 +496,11 @@ export default function PlanRideScreen() {
           },
         });
       } else {
-        Alert.alert(
-          "Dispatch Error",
-          data.error ||
-            "The system was unable to submit the dispatch parameters.",
-        );
+        Alert.alert("Dispatch Error", data.error || "The system was unable to submit dispatch parameters.");
       }
     } catch (e) {
       console.error("Confirm Ride Process Failure:", e);
-      Alert.alert(
-        "Connectivity Failure",
-        "Could not establish transmission loop with our pricing engines.",
-      );
+      Alert.alert("Connectivity Failure", "Could not establish transmission loop with routing backends.");
     } finally {
       setLoading(false);
     }
@@ -638,19 +650,21 @@ export default function PlanRideScreen() {
               <Marker coordinate={coords.destination} title="Destination" />
             )}
 
-            {nearbyDrivers.map((driver) => (
-              <Marker
-                key={driver.id}
-                coordinate={{ latitude: driver.lat, longitude: driver.lng }}
-                rotation={driver.heading}
-                flat={true}
-              >
-                <Image
-                  source={require("../app/images/car-marker.png")}
-                  style={{ width: 40, height: 40, resizeMode: "contain" }}
-                />
-              </Marker>
-            ))}
+            {/* 🪙 GOLD COIN MAP MARKER SYNC COMPONENT */}
+        {nearbyDrivers.map((driver) => (
+          <Marker
+            key={driver.driverId}
+            coordinate={{ latitude: driver.latitude, longitude: driver.longitude }}
+            rotation={driver.heading}
+            flat={true}
+            anchor={{ x: 0.5, y: 0.5 }}
+          >
+            <Image
+              source={{ uri: "https://static.vecteezy.com/system/resources/thumbnails/048/591/586/small_2x/modern-car-isolated-on-background-3d-rendering-illustration-png.png" }}
+              style={styles.carMarker}
+            />
+          </Marker>
+        ))}
 
             {coords.origin && coords.destination && (
               <MapViewDirections
@@ -920,6 +934,12 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     padding: 24,
     elevation: 10,
+  },
+  // 🪙 ADD THIS COMPONENT NODE TO RESOLVE TYPE ERROR 2339
+  carMarker: {
+    width: 35,
+    height: 35,
+    resizeMode: "contain",
   },
   searchInputsRow: { flexDirection: "row", alignItems: "flex-start" },
   legoConnectorVertical: {

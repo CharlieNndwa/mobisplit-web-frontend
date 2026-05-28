@@ -22,7 +22,8 @@ import { useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import io from "socket.io-client";
 
-const API_BASE = "https://daringly-tacky-anemic.ngrok-free.dev";
+// Replace your old ngrok lines with this dynamic look-up:
+const API_BASE = process.env.EXPO_PUBLIC_API_URL || "https://mobisplit-backend-production.up.railway.app";
 
 export default function WalletScreen() {
   const router = useRouter();

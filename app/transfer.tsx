@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
-import { ArrowLeftRight, Smartphone } from 'lucide-react-native';
+import { ArrowLeftRight, ChevronLeft, Smartphone } from 'lucide-react-native';
 
-const API_BASE = "https://daringly-tacky-anemic.ngrok-free.dev";
+const API_BASE = process.env.EXPO_PUBLIC_API_URL || "https://mobisplit-backend-production.up.railway.app";
 
 export default function TransferScreen() {
   const router = useRouter();
@@ -12,74 +12,82 @@ export default function TransferScreen() {
   const [amount, setAmount] = useState('');
   const [loading, setLoading] = useState(false);
 
-// 1. Add the utility function inside your TransferScreen component
-const normalizePhone = (phone: string) => {
-  // Remove all spaces, dashes, or special characters
-  let cleaned = phone.replace(/[^0-9+]/g, ''); 
-  
-  // Convert +27 prefix to 0 for local compatibility
-  if (cleaned.startsWith('+27')) {
-    return '0' + cleaned.slice(3);
-  }
-  return cleaned;
-};
-
-// 2. Updated handleP2PTransfer function
-const handleP2PTransfer = async () => {
-  if (!recipient || !amount) return Alert.alert("Error", "Fill in all fields");
-
-  // Apply normalization before the API call
-  const cleanRecipient = normalizePhone(recipient);
-  const transferAmount = parseFloat(amount);
-
-  if (isNaN(transferAmount) || transferAmount <= 0) {
-    return Alert.alert("Error", "Please enter a valid amount.");
-  }
-
-  setLoading(true);
-  try {
-    const userId = await SecureStore.getItemAsync('user_id');
-    const res = await fetch(`${API_BASE}/api/payments/transfer-p2p`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        senderId: userId, 
-        recipientPhone: cleanRecipient, // Sending the normalized number
-        amount: transferAmount 
-      })
-    });
-
-    const data = await res.json();
-    
-    if (data.success) {
-      Alert.alert("Success", data.message);
-      router.back();
-    } else {
-      throw new Error(data.message || "Transfer failed");
+  const normalizePhone = (phone: string) => {
+    let cleaned = phone.replace(/[^0-9+]/g, ''); 
+    if (cleaned.startsWith('+27')) {
+      return '0' + cleaned.slice(3);
     }
-  } catch (e: any) {
-    Alert.alert("Transfer Failed", e.message);
-  } finally {
-    setLoading(false);
-  }
-};
+    return cleaned;
+  };
+
+  const handleP2PTransfer = async () => {
+    if (!recipient || !amount) return Alert.alert("Error", "Fill in all fields");
+    
+    const targetRecipient = normalizePhone(recipient);
+    const parsedAmount = parseFloat(amount);
+
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      return Alert.alert("Error", "Enter a valid positive transfer amount.");
+    }
+
+    setLoading(true);
+    try {
+      const token = await SecureStore.getItemAsync("user_token");
+      if (!token) {
+        setLoading(false);
+        return Alert.alert("Authentication Error", "Session expired.");
+      }
+
+      const response = await fetch(`${API_BASE}/api/payments/transfer-p2p`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          recipientPhone: targetRecipient,
+          amount: parsedAmount
+        })
+      });
+
+      const resData = await response.json();
+
+      if (response.ok && resData.success) {
+        Alert.alert("Success", `R${parsedAmount} transferred to ${targetRecipient} successfully.`);
+        router.back();
+      } else {
+        Alert.alert("Transfer Failed", resData.message || "Unable to complete processing execution.");
+      }
+    } catch (error) {
+      console.error("Transfer system error:", error);
+      Alert.alert("Network Error", "Unable to route request to backend server clusters.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>SEND MONEY</Text>
-      
+      {/* Back Button Header Framework */}
+      <View style={styles.headerRow}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+          <ChevronLeft color="#FFF" size={28} />
+        </TouchableOpacity>
+        <Text style={styles.title}>Send Funds</Text>
+      </View>
+
       <View style={styles.card}>
-        <Text style={styles.label}>Recipient Phone Number</Text>
+        <Text style={styles.label}>RECIPIENT CELLPHONE / ID</Text>
         <TextInput 
           style={styles.input} 
-          placeholder="071 234 5678" 
-          placeholderTextColor="#666" 
+          placeholder="e.g. 0821234567" 
+          placeholderTextColor="#666"
           value={recipient}
           onChangeText={setRecipient}
           keyboardType="phone-pad"
         />
         
-        <Text style={styles.label}>Amount (ZAR)</Text>
+        <Text style={styles.label}>AMOUNT (ZAR)</Text>
         <TextInput 
           style={styles.input} 
           placeholder="0.00" 
@@ -91,10 +99,10 @@ const handleP2PTransfer = async () => {
 
         <TouchableOpacity style={styles.btn} onPress={handleP2PTransfer} disabled={loading}>
           {loading ? <ActivityIndicator color="#000"/> : (
-            <>
+            <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
               <ArrowLeftRight color="#000" size={20} />
               <Text style={styles.btnText}>TRANSFER TO WALLET</Text>
-            </>
+            </View>
           )}
         </TouchableOpacity>
       </View>
@@ -104,10 +112,12 @@ const handleP2PTransfer = async () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000', padding: 20, paddingTop: 60 },
-  title: { color: '#FFF', fontSize: 28, fontWeight: '900', marginBottom: 20 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
+  backBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'flex-start' },
+  title: { color: '#FFF', fontSize: 28, fontWeight: '900', marginLeft: 10 },
   card: { backgroundColor: '#111', padding: 20, borderRadius: 10, borderWidth: 2, borderColor: '#333' },
-  label: { color: '#888', marginBottom: 5, fontWeight: 'bold' },
-  input: { backgroundColor: '#222', color: '#FFF', padding: 15, borderRadius: 5, marginBottom: 20, fontSize: 18 },
-  btn: { backgroundColor: '#BADA55', padding: 18, borderRadius: 5, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 10 },
-  btnText: { color: '#000', fontWeight: '900', fontSize: 16 }
+  label: { color: '#888', marginBottom: 8, fontWeight: 'bold', fontSize: 12 },
+  input: { backgroundColor: '#222', color: '#FFF', padding: 15, borderRadius: 8, marginBottom: 20, fontWeight: 'bold', fontSize: 16 },
+  btn: { backgroundColor: '#FFD700', padding: 18, borderRadius: 8, alignItems: 'center', justifyContent: 'center', marginTop: 10 },
+  btnText: { color: '#000', fontWeight: '900', fontSize: 14 }
 });

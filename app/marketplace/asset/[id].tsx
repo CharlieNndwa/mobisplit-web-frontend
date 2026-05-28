@@ -3,6 +3,10 @@ import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Linking, A
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Phone, MessageSquare, ShieldCheck, MapPin, Clock } from 'lucide-react-native';
 
+// Replace your old ngrok lines with this dynamic look-up:
+const API_BASE = process.env.EXPO_PUBLIC_API_URL || "https://mobisplit-backend-production.up.railway.app";
+
+
 export default function AssetDetailScreen() {
   const { id } = useLocalSearchParams();
   const [asset, setAsset] = useState<any>(null);
@@ -10,7 +14,7 @@ export default function AssetDetailScreen() {
 
   useEffect(() => {
     // Fetch specific asset details from your backend
-    fetch(`https://daringly-tacky-anemic.ngrok-free.dev/api/assets/details/${id}`)
+    fetch(`${API_BASE}/api/assets/details/${id}`)
       .then(res => res.json())
       .then(data => {
         setAsset(data);
