@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   StyleSheet,
   View,
@@ -7,191 +7,174 @@ import {
   TextInput,
   Alert,
   ScrollView,
-  ActivityIndicator, // 🪙 ADDED THIS
+  ActivityIndicator,
 } from "react-native";
 import MapView, { Marker } from "react-native-maps";
-import {
-  ChevronLeft,
-  MapPin,
-  Phone,
-  Calendar,
-  Send,
-} from "lucide-react-native";
+import { ChevronLeft, MapPin, Phone, Calendar, Send } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-// 🪙 FIXED: Explicit type and dark theme configuration
 const darkMapStyle: any[] = [
   { elementType: "geometry", stylers: [{ color: "#242f3e" }] },
   { elementType: "labels.text.fill", stylers: [{ color: "#746855" }] },
   { elementType: "labels.text.stroke", stylers: [{ color: "#242f3e" }] },
-  {
-    featureType: "road",
-    elementType: "geometry",
-    stylers: [{ color: "#38414e" }],
-  },
-  {
-    featureType: "water",
-    elementType: "geometry",
-    stylers: [{ color: "#17263c" }],
-  },
+  { featureType: "road", elementType: "geometry", stylers: [{ color: "#38414e" }] },
+  { featureType: "water", elementType: "geometry", stylers: [{ color: "#17263c" }] },
 ];
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://mobisplit-backend-production.up.railway.app";
 
 export default function LongDistancePlanner() {
   const router = useRouter();
-  const [pickup, setPickup] = useState("");
-  const [destination, setDestination] = useState("");
-  const [phone, setPhone] = useState("");
-  const [departureDate, setDepartureDate] = useState("");
-  // 🪙 ADDED: Loading state to fix the TS error
   const [loading, setLoading] = useState(false);
+  const [driverId, setDriverId] = useState("");
+  const [driverName, setDriverName] = useState("");
 
-  // 🪙 UPDATED: handlePublish with General Location Logic & Standardized Payload
+  const [form, setForm] = useState({
+    pickup: "",
+    destination: "",
+    time: "",
+    phone: "",
+  });
+
+  useEffect(() => {
+    const bootstrapDriverAuth = async () => {
+      try {
+        const userDataStr = await SecureStore.getItemAsync("user_data");
+        if (userDataStr) {
+          const userData = JSON.parse(userDataStr);
+          setDriverId(userData.id || "");
+          setDriverName(userData.fullName || userData.full_name || "MobiSplit Driver");
+        }
+      } catch (err) {
+        console.error("Failed fetching driver session context metadata:", err);
+      }
+    };
+    bootstrapDriverAuth();
+   biographicalDetails();
+  }, []);
+
   const handlePublish = async () => {
-    // Ensure all fields are present for a valid trip
-    if (!pickup || !destination || !phone) {
-      Alert.alert("Missing Info", "Please provide route and contact number.");
+    if (!form.pickup || !form.destination || !form.time || !form.phone) {
+      Alert.alert("Required Fields", "Please complete all fields to establish a scheduled transit route.");
       return;
     }
 
-    setLoading(true); // Assuming you have a loading state for the UI
-
+    setLoading(true);
     try {
-      // 1. Retrieve essential IDs and Profile info from SecureStore
-      const userId = await SecureStore.getItemAsync("userId");
-      const driverName = await SecureStore.getItemAsync("user_full_name");
-
-      // 2. Construct the standardized payload 🪙
-      // We use 'pickup' and 'destination' directly to support any location on the map
-      const tripPayload = {
-        driverId: userId,
-        driverName: driverName || "MobiDriver",
-        pickup: pickup, // General string (e.g., "Soweto, GP" or specific address)
-        destination: destination,
-        time: departureDate || "Flexible / Contact Driver",
-        phone: phone,
-      };
-
-      // 3. Hit the backend endpoint
       const response = await fetch(`${API_URL}/api/trips/publish`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(tripPayload),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          driverId: driverId || "f8e37246-e162-4dbc-9785-022de84c5b81", // Fallback if session delay occurs
+          driverName,
+          pickup: form.pickup.trim(),
+          destination: form.destination.trim(),
+          time: form.time.trim(),
+          phone: form.phone.trim(),
+        }),
       });
 
-      const result = await response.json();
+      const data = await response.json();
 
-      if (result.success) {
-        // 🪙 CRITICAL: Success alert and navigation
-        Alert.alert(
-          "Trip Published 🪙",
-          "Your long-distance trip is now visible to passengers.",
-          [
-            {
-              text: "OK",
-              onPress: () => router.replace("/(tabs)/home"), // Redirect to Home to see the new trip
-            },
-          ],
-        );
+      if (data.success) {
+        Alert.alert("Success 🚀", "Your inter-provincial trip is live on the marketplace board!", [
+          { text: "Awesome", onPress: () => router.replace("/home") }
+        ]);
       } else {
-        throw new Error(result.message || "Failed to publish trip.");
+        Alert.alert("Publishing Failed", data.message || "Server encountered an execution conflict.");
       }
-    } catch (err) {
-      console.error("Publish Trip Error:", err);
-      Alert.alert(
-        "Sync Error",
-        "Could not publish trip. Please ensure your backend is running.",
-      );
+    } catch (error: any) {
+      Alert.alert("Network Failure", "Unable to contact production node threads. Please try again.");
+      console.error(error);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <MapView
         style={styles.map}
         initialRegion={{
-          latitude: -28.4793,
-          longitude: 24.6727, // Centered on South Africa
-          latitudeDelta: 12.0,
-          longitudeDelta: 12.0,
+          latitude: -26.2041,
+          longitude: 28.0473,
+          latitudeDelta: 8.0,
+          longitudeDelta: 8.0,
         }}
         customMapStyle={darkMapStyle}
       />
 
-      <View style={styles.formContainer}>
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.formContainer}
+      >
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
           <ChevronLeft color="#FFF" size={24} />
         </TouchableOpacity>
 
-        <Text style={styles.title}>Plan Provincial Route</Text>
+        <Text style={styles.title}>PROVINCIAL PLANNER</Text>
 
-        <View style={styles.inputGroup}>
-          <MapPin color="#FBBF24" size={20} />
-          <TextInput
-            placeholder="Starting Province / City"
-            placeholderTextColor="#64748B"
-            style={styles.input}
-            value={pickup}
-            onChangeText={setPickup}
-          />
-        </View>
+        <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          <View style={styles.inputGroup}>
+            <MapPin color="#FBBF24" size={20} />
+            <TextInput
+              placeholder="Departure Province (e.g., Gauteng)"
+              placeholderTextColor="#64748B"
+              style={styles.input}
+              value={form.pickup}
+              onChangeText={(text) => setForm({ ...form, pickup: text })}
+            />
+          </View>
 
-        <View style={styles.inputGroup}>
-          <MapPin color="#EF4444" size={20} />
-          <TextInput
-            placeholder="Destination Province / City"
-            placeholderTextColor="#64748B"
-            style={styles.input}
-            value={destination}
-            onChangeText={setDestination}
-          />
-        </View>
+          <View style={styles.inputGroup}>
+            <MapPin color="#EF4444" size={20} />
+            <TextInput
+              placeholder="Destination Province (e.g., Limpopo)"
+              placeholderTextColor="#64748B"
+              style={styles.input}
+              value={form.destination}
+              onChangeText={(text) => setForm({ ...form, destination: text })}
+            />
+          </View>
 
-        <View style={styles.inputGroup}>
-          <Calendar color="#3B82F6" size={20} />
-          <TextInput
-            placeholder="Departure (e.g. Friday 2pm)"
-            placeholderTextColor="#64748B"
-            style={styles.input}
-            value={departureDate}
-            onChangeText={setDepartureDate}
-          />
-        </View>
+          <View style={styles.inputGroup}>
+            <Calendar color="#3B82F6" size={20} />
+            <TextInput
+              placeholder="Departure Time (e.g., Today, 18:00)"
+              placeholderTextColor="#64748B"
+              style={styles.input}
+              value={form.time}
+              onChangeText={(text) => setForm({ ...form, time: text })}
+            />
+          </View>
 
-        <View style={styles.inputGroup}>
-          <Phone color="#10B981" size={20} />
-          <TextInput
-            placeholder="Public Contact Number"
-            placeholderTextColor="#64748B"
-            keyboardType="phone-pad"
-            style={styles.input}
-            value={phone}
-            onChangeText={setPhone}
-          />
-        </View>
+          <View style={styles.inputGroup}>
+            <Phone color="#10B981" size={20} />
+            <TextInput
+              placeholder="Contact Hotline Number"
+              placeholderTextColor="#64748B"
+              keyboardType="phone-pad"
+              style={styles.input}
+              value={form.phone}
+              onChangeText={(text) => setForm({ ...form, phone: text })}
+            />
+          </View>
 
-        <TouchableOpacity 
-  style={[styles.publishBtn, loading && { opacity: 0.7 }]} 
-  onPress={handlePublish}
-  disabled={loading}
->
-  <Text style={styles.publishText}> {/* 🪙 CHANGED FROM publishBtnText */}
-    {loading ? "PUBLISHING..." : "PUBLISH TRIP"}
-  </Text>
-  {loading ? (
-    <ActivityIndicator color="#000" size="small" style={{ marginLeft: 10 }} />
-  ) : (
-    <Send color="#000" size={20} />
-  )}
-</TouchableOpacity>
-      </View>
-    </View>
+          <TouchableOpacity style={styles.submitBtn} onPress={handlePublish} disabled={loading}>
+            {loading ? (
+              <ActivityIndicator color="#000" />
+            ) : (
+              <>
+                <Text style={styles.submitBtnText}>PUBLISH TRIP ROUTE</Text>
+                <Send size={18} color="#000" />
+              </>
+            )}
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
@@ -202,6 +185,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: 0,
     width: "100%",
+    maxHeight: "65%",
     backgroundColor: "#0F172A",
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
@@ -219,8 +203,9 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     borderWidth: 1,
     borderColor: "#334155",
+    zIndex: 10,
   },
-  title: { color: "#FFF", fontSize: 20, fontWeight: "900", marginBottom: 20 },
+  title: { color: "#FFF", fontSize: 20, fontWeight: "900", marginBottom: 20, letterSpacing: 1 },
   inputGroup: {
     flexDirection: "row",
     alignItems: "center",
@@ -229,29 +214,20 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     marginBottom: 12,
     height: 55,
+    borderWidth: 1,
+    borderColor: "#334155",
   },
-  input: { flex: 1, marginLeft: 10, color: "#FFF", fontWeight: "600" },
-  
-  
-  publishBtn: {
-    backgroundColor: "#FDE047", // Lime/Yellow theme
+  input: { flex: 1, marginLeft: 10, color: "#FFF", fontWeight: "700", fontSize: 14 },
+  submitBtn: {
+    backgroundColor: "#FBBF24",
     height: 55,
     borderRadius: 15,
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    gap: 12, // 🪙 Optimal gap for icons
-    borderWidth: 2,
-    borderColor: "#000",
-        marginTop: 25, // 🪙 Added spacing
-    marginBottom: 10, // 🪙 Added spacing
+    gap: 10,
+    marginTop: 10,
+    marginBottom: 20,
   },
-  
-  // 🪙 MATCHING THE NAME IN YOUR ERROR MESSAGE
-  publishText: { 
-    color: "#000", 
-    fontWeight: "900", 
-    fontSize: 16,
-    marginRight: 10 
-  },
+  submitBtnText: { color: "#000", fontWeight: "900", fontSize: 15, letterSpacing: 0.5 },
 });

@@ -138,10 +138,15 @@ useEffect(() => {
 useEffect(() => {
   const socket = io(SOCKET_URL);
   
-  socket.on("trip:published", (newTrip) => {
-    setLongDistanceTrips((prev) => [newTrip, ...prev]);
+  // 🪙 NEW: REAL-TIME INTER-PROVINCIAL BROADCAST LISTENER
+  socketInstance.on("long_distance:trip_published", (newTrip: LongDistanceTrip) => {
+    setLongDistanceTrips((prevTrips) => {
+      // Avoid appending duplicate records if state requests overlap
+      if (prevTrips.some(t => t.id === newTrip.id)) return prevTrips;
+      return [newTrip, ...prevTrips];
+    });
   });
-
+  
   return () => { socket.disconnect(); };
 }, []);
 
