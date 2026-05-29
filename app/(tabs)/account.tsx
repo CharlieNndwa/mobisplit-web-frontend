@@ -47,50 +47,64 @@ export default function AccountScreen() {
   const [fullName, setFullName] = useState("Mobisplit User");
   const [isVerifiedDriver, setIsVerifiedDriver] = useState(false); // Added missing state
 
-  // 🪙 UPGRADED: useFocusEffect with strict key alignment ('user_id') and dual-state binding
+ // Single Synchronized Pipeline across Focus States
+  const syncAccountState = useCallback(async () => {
+    try {
+      // 1. Instantly pull latest values stored locally to eliminate layout flashes
+      const uid = await SecureStore.getItemAsync("user_id");
+      const savedName = await SecureStore.getItemAsync("user_full_name");
+      const savedRole = await SecureStore.getItemAsync("user_role") || await SecureStore.getItemAsync("user_type") || "rider";
+      const verifiedStatus = await SecureStore.getItemAsync("is_verified_driver");
+      const token = await SecureStore.getItemAsync("user_token"); // Ensure token is loaded
+
+      if (uid) setUserId(uid);
+      if (savedName) setFullName(savedName);
+      setUserRole(savedRole);
+      setIsVerifiedDriver(verifiedStatus === "true");
+
+      if (!uid) return;
+
+      // 2. Query Remote Server Framework with standard token verification
+      const response = await fetch(`${API_URL}/api/user/status/${uid}`, {
+        headers: {
+          "Content-Type": "application/json",
+          "ngrok-skip-browser-warning": "true",
+          ...(token ? { "Authorization": `Bearer ${token}` } : {})
+        },
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.status) {
+        // Fallback checks to prioritize actual driver status flags
+        const dbRole = data.status.role || (data.status.is_driver ? "driver" : "rider");
+        const serverVerified = data.status.driver_status === "verified" || data.status.driver_status === "approved" || data.status.is_driver === true;
+
+        setUserRole(dbRole);
+        setIsVerifiedDriver(serverVerified);
+
+        // Commit downstream transformations back to persistent storage
+        await SecureStore.setItemAsync("user_role", dbRole);
+        await SecureStore.setItemAsync("user_type", dbRole);
+        await SecureStore.setItemAsync("is_verified_driver", String(serverVerified));
+      }
+    } catch (error) {
+      console.error("🔒 High-Priority Profile Sync Intercept Failure:", error);
+    }
+  }, []);
+
+  // Sync on every screen look-up focus loop
   useFocusEffect(
     useCallback(() => {
-      const syncStatus = async () => {
-        // 💎 A++ FIX: Sync key naming architecture with sign-in and driver-setup workflows
-        const uid = await SecureStore.getItemAsync("user_id");
-        if (!uid) return;
-
-        try {
-          // 🪙 FIX: Added ngrok-skip-browser-warning header to secure local tunnel response packets
-          const response = await fetch(`${API_URL}/api/user/status/${uid}`, {
-            headers: {
-              "Content-Type": "application/json",
-              "ngrok-skip-browser-warning": "true",
-            },
-          });
-
-          const data = await response.json();
-
-          if (data.success) {
-            const { role, driver_status } = data.status;
-            const isVerified = driver_status === "verified";
-
-            // 🪙 SYNC STATE: Mutate both states simultaneously to prevent interface layout lag
-            setIsDriver(role === "driver");
-            setUserRole(role);
-            setIsVerifiedDriver(isVerified);
-
-            // Update SecureStore so other screens stay completely in sync
-            await SecureStore.setItemAsync("user_role", role);
-            await SecureStore.setItemAsync("user_type", role);
-            await SecureStore.setItemAsync(
-              "is_verified_driver",
-              String(isVerified),
-            );
-          }
-        } catch (error) {
-          console.error("Background Sync Failed:", error);
-        }
-      };
-
-      syncStatus();
-    }, []),
+      syncAccountState();
+    }, [syncAccountState])
   );
+
+ useEffect(() => {
+  // Initial mount cache population
+  syncAccountState();
+  SecureStore.getItemAsync(IMAGE_KEY).then((img) => img && setProfileImage(img));
+}, [syncAccountState]);
 
   // 🪙 UPGRADED: Synchronized Component Mount Data Pipeline
   const fetchUserData = useCallback(async () => {
@@ -273,54 +287,55 @@ export default function AccountScreen() {
   return (
     <View style={styles.container}>
       <SafeAreaView style={{ flex: 1 }}>
-        <View style={styles.badgeAnchor}>
-          <View
+        {/* VERIFIED BADGE SYSTEM RENDER ENGINE */}
+      <View style={styles.badgeAnchor}>
+        <View
+          style={[
+            styles.verifiedBadge,
+            {
+              backgroundColor: "#0F172A",
+              borderColor:
+                userRole === "driver"
+                  ? isVerifiedDriver
+                    ? "#FDE047" // Verified Driver (Yellow Gold Accent)
+                    : "#475569" // Pending Driver (Muted Slate)
+                  : "#10B981", // Rider Verified (Lime Green)
+            },
+          ]}
+        >
+          {userRole === "driver" ? (
+            <ShieldCheck
+              size={14}
+              color={isVerifiedDriver ? "#FDE047" : "#64748B"}
+            />
+          ) : (
+            <CheckCircle2 size={14} color="#10B981" />
+          )}
+
+          <Text
             style={[
-              styles.verifiedBadge,
+              styles.badgeText,
               {
-                backgroundColor: "#0F172A",
-                // 🪙 Logic: Drivers only get the yellow border if actually verified
-                borderColor:
+                color:
                   userRole === "driver"
                     ? isVerifiedDriver
                       ? "#FDE047"
-                      : "#475569"
+                      : "#64748B"
                     : "#10B981",
+                fontWeight: "900",
+                fontSize: 11,
+                marginLeft: 5
               },
             ]}
           >
-            {userRole === "driver" ? (
-              <ShieldCheck
-                size={14}
-                color={isVerifiedDriver ? "#FDE047" : "#64748B"}
-              />
-            ) : (
-              <CheckCircle2 size={14} color="#10B981" />
-            )}
-
-            <Text
-              style={[
-                styles.badgeText,
-                {
-                  color:
-                    userRole === "driver"
-                      ? isVerifiedDriver
-                        ? "#FDE047"
-                        : "#64748B"
-                      : "#10B981",
-                  fontWeight: "900",
-                },
-              ]}
-            >
-              {/* 🪙 FIX: This now accurately shows Pending for new drivers */}
-              {userRole === "driver"
-                ? isVerifiedDriver
-                  ? "VERIFIED DRIVER"
-                  : "PENDING APPROVAL"
-                : "VERIFIED RIDER"}
-            </Text>
-          </View>
+            {userRole === "driver"
+              ? isVerifiedDriver
+                ? "VERIFIED DRIVER"
+                : "PENDING APPROVAL"
+              : "VERIFIED RIDER"}
+          </Text>
         </View>
+      </View>
 
         <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
           <View style={styles.profileHeaderCentered}>

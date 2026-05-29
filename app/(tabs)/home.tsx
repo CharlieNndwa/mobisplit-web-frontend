@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   StyleSheet,
   View,
@@ -36,6 +36,7 @@ import {
   Globe,
 } from "lucide-react-native";
 import io, { Socket } from "socket.io-client";
+import { useSocket } from '../../context/SocketContext';
 // --- Components ---
 import AdBanner from "../components/AdBanner";
 
@@ -77,7 +78,8 @@ const BoltFeatureCard = ({ source }: { source: any }) => (
 export default function HomeScreen() {
   const [showDriverNotify, setShowDriverNotify] = useState(false);
   const [hasPromo, setHasPromo] = useState(false);
-
+  const socketRef = useRef<Socket | null>(null);
+  const { socket: socketInstance } = useSocket() as any;
   const router = useRouter();
   // 🪙 UPDATED: Moved these hooks INSIDE the component function
   const [longDistanceTrips, setLongDistanceTrips] = useState<
@@ -133,6 +135,23 @@ useEffect(() => {
 
   initializeHomeContext();
 }, []);
+
+// 🪙 CLEANED HOOK: Real-time broadcast setup utilizing your centralized context directly
+  useEffect(() => {
+    if (!socketInstance) return;
+
+    // 🪙 REAL-TIME INTER-PROVINCIAL BROADCAST LISTENER
+    socketInstance.on("long_distance:trip_published", (newTrip: LongDistanceTrip) => {
+      setLongDistanceTrips((prevTrips) => {
+        if (prevTrips.some(t => t.id === newTrip.id)) return prevTrips;
+        return [newTrip, ...prevTrips];
+      });
+    });
+    
+    return () => {
+      socketInstance.off("long_distance:trip_published");
+    };
+  }, [socketInstance]);
 
   // 🪙 4. Live Provincial Trip Updates
 useEffect(() => {
