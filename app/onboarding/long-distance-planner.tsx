@@ -8,6 +8,8 @@ import {
   Alert,
   ScrollView,
   ActivityIndicator,
+  KeyboardAvoidingView, // ✅ Added missing import
+  Platform,             // ✅ Added missing import
 } from "react-native";
 import MapView, { Marker } from "react-native-maps";
 import { ChevronLeft, MapPin, Phone, Calendar, Send } from "lucide-react-native";
@@ -38,6 +40,62 @@ export default function LongDistancePlanner() {
     phone: "",
   });
 
+  const handleSubmit = async () => {
+  if (!pickupProvince || !destinationProvince || !departureTime || !contactNumber) {
+    Alert.alert("Error", "Please fill in all routing fields.");
+    return;
+  }
+
+  setLoading(true);
+  try {
+    // 🛡️ Robust identity fallback checks
+    let driverId = await SecureStore.getItemAsync("user_id");
+    if (!driverId) driverId = await SecureStore.getItemAsync("userId");
+
+    let driverName = await SecureStore.getItemAsync("user_full_name");
+    if (!driverName) driverName = await SecureStore.getItemAsync("userName");
+
+    if (!driverId || !driverName) {
+      Alert.alert("Session Error", "Could not verify your driver identity profiles. Please log in again.");
+      setLoading(false);
+      return;
+    }
+
+    const tripPayload = {
+      driverId,
+      driverName,
+      pickup_province: pickupProvince,
+      destination_province: destinationProvince,
+      departure_time: departureTime,
+      contact_number: contactNumber,
+    };
+
+    console.log("🚀 Dispatching Inter-Provincial Payload:", tripPayload);
+
+    const response = await fetch(`${API_URL}/api/trips/publish`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(tripPayload),
+    });
+
+    const data = await response.json();
+
+    if (response.status === 200 || response.status === 201 || data.success) {
+      Alert.alert("Success", "Your provincial trip has been published successfully!");
+      router.replace("/driver-dashboard");
+    } else {
+      Alert.alert("Publishing Failed", data.message || "Server rejected the payload layout standard.");
+    }
+  } catch (error) {
+    console.error("Transmission Failure Trace:", error);
+    Alert.alert("Network Error", "Unable to establish contact with the backend cluster infrastructure.");
+  } finally {
+    setLoading(false);
+  }
+};
+
   useEffect(() => {
     const bootstrapDriverAuth = async () => {
       try {
@@ -52,10 +110,10 @@ export default function LongDistancePlanner() {
       }
     };
     bootstrapDriverAuth();
-   biographicalDetails();
+   
   }, []);
 
-  const handlePublish = async () => {
+ const handlePublish = async () => {
     if (!form.pickup || !form.destination || !form.time || !form.phone) {
       Alert.alert("Required Fields", "Please complete all fields to establish a scheduled transit route.");
       return;
@@ -67,18 +125,20 @@ export default function LongDistancePlanner() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          driverId: driverId || "f8e37246-e162-4dbc-9785-022de84c5b81", // Fallback if session delay occurs
-          driverName,
-          pickup: form.pickup.trim(),
-          destination: form.destination.trim(),
-          time: form.time.trim(),
-          phone: form.phone.trim(),
+          driverId: driverId || "f8e37246-e162-4dbc-9785-022de84c5b81", 
+          driverName: driverName,
+          // 🪙 FIXED: Keys now perfectly match backend controller validation demands
+          pickup_province: form.pickup.trim(),
+          destination_province: form.destination.trim(),
+          departure_time: form.time.trim(),
+          contact_number: form.phone.trim(),
+          total_fare: "R0.00" // Optional fallback string value to avoid undefined layout errors
         }),
       });
 
       const data = await response.json();
 
-      if (data.success) {
+      if (response.ok && (data.success || data.id)) {
         Alert.alert("Success 🚀", "Your inter-provincial trip is live on the marketplace board!", [
           { text: "Awesome", onPress: () => router.replace("/home") }
         ]);

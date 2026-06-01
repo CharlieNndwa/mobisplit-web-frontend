@@ -22,6 +22,7 @@ import {
   Clock,
   User,
   ChevronLeft,
+  ChevronRight,
   Wallet,
   Car,
   MapPin,
@@ -303,7 +304,7 @@ export default function DriverDashboardScreen() {
             <View style={styles.verificationCardHeaderRow}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                 <ShieldCheck size={20} color="#10B981" />
-                <Text style={styles.verificationCardTitle}>VERIFIED SYSTEM DOSSIER</Text>
+                <Text style={styles.verificationCardTitle}>VERIFIED DOSSIER</Text>
               </View>
               <View style={styles.badgeContainer}>
                 <Text style={styles.badgeText}>SECURE PROFILE</Text>
@@ -360,6 +361,7 @@ export default function DriverDashboardScreen() {
             onPress={() => router.push("/onboarding/long-distance-planner")}
           >
             <MapPin size={20} color="#000" />
+            <ChevronRight size={16} color="#000" />
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -617,5 +619,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#10B981",
     justifyContent: "center",
     alignItems: "center",
+  },
+  longDistanceActionText: {
+    color: "#000",
+    fontSize: 13,
+    fontWeight: "900",
   },
 });
