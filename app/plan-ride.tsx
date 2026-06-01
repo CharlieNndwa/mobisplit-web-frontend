@@ -521,7 +521,7 @@ useEffect(() => {
 
           <MotiView from={{ opacity: 0 }} animate={{ opacity: 1 }}>
             <Image
-              source={require("./images/logo__3_-removebg-preview.png")}
+              source={require("./images/logoroza-removebg-preview.png")}
               style={styles.mainLogo}
               resizeMode="contain"
             />
@@ -924,10 +924,10 @@ const styles = StyleSheet.create({
   topBackBtn: { position: "absolute", top: 20, left: 20, zIndex: 10 },
   mainLogo: {
     width: width * 0.8,
-    height: 100,
+    height: 150,
     alignSelf: "center",
-    marginTop: 40,
-    marginBottom: 20,
+    marginTop: 50,
+    marginBottom: 30,
   },
   legoBrickBody: {
     backgroundColor: "#FFF",

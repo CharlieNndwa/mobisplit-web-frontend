@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "mobisplit",
+  "private_key_id": "53c247d23e8012d3e09cc70cdb2a99b212ce365e",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDE7EqycQwwv6JT\niD/Of5ug851w1RZopUehUshDU42VOwJFUPSf5ZCnV6GJDwbRDJjSuztWUwfUjVrR\nGHGYRaa5fdNdtTQQ0FrcMmJ7tpNZyzuwV6UJAQgzLMEesOV9CkhGo7RVwPX6lrk6\nfCmc+Oz6ut3TzeghmeFqX24zsgzWIYGr1dEeC+YZFXfsQe6L8fnZAoUCkgCSW0Hj\n06YxJic6A/hk+g3gVYRXP8CN3vEfNlZtXSR1llbY01UIXyI0yjl0g/2edDQf8wAK\npfihK5zs6QpsdjWsCQ0bZKE2q01A0I0jfo3/13YvHfp++T2Uj1Wbnh2Fje6iWiqo\nVRt9uozPAgMBAAECggEARUtWz6rrHL5aayV/OnV5+K2xIbLCE2nRpmmAcfyVTkV4\n+5ZMtnVsLQ6vl5Czl91ka4caDrrh/wAMzJZa5rffvtcRiSCJ5T7EMkcCk8D/4fGb\nm+aDewMjdQqTHG8oGhODsmPJwgFILXlbTcLCS+vmTCZ0h6Mlw6koAqv5FfTaAoEh\n4EsLBgQWhwtlxDWQrM5S2Bd47NCoQWiFtFyo4o+o/mIYWobsk3lq5SCSgbrS9V+u\ny0Oo+uYjhTl0P5oEm22+JFeT3fhsMJO8ELZgsa2tD2t/0CPhNd+xMCSXa57EbQd7\nrhE1lOczQtBMZ/CkKbdmNpS8nG2LGnKz9OHw3OAGbQKBgQD7SyB3cWibXtuHHvbZ\nJAB+TsuWCcx9ZMqB3o/kfYiaw6cylVC1DGymKHLI6LLrNMRsYlni8KVB/l+o5rfh\ndLLY5zyrEJi8gCTmcG1B3VoiBoB4Xb3Gs1WoqWPfvtleoFI6qs548U6wcs8RRa8G\n6qg1IX30fPaVvWeEU11B7SkXAwKBgQDInHnKjqi20c4fAfOa/QVXFJZmVyvh/SE4\nNa6e7+oJrajo/mA96NntgFjeYGTByGF43xZpwkWl28GnzTIjPsIUBExmFG8d2jqr\nWbAdWhXGWczV4xkPx5vXaBNmFCk0q1yyFlNF06FreDty7+QlglEeHOE+oNSsSfBo\nj5H25RtzRQKBgAJrY8GipuYwEJ8JbkkC7rpIme804vImIUkE0o/ZoZIT5i03gNJt\nbzJeW1SR4P8gv+9nNwRXWs/62gLvTb/u9rXd7BidjUrrVO+fD3492ltPgrcl9+jM\n2ztHfj2uQbuGgaQs9tX1RNOwF0xMRnYjlkEEtIjBF0Kz0yZUAybaWLXvAoGBALAt\nk1wLaymbGazrltfPS2hNYUQhXB2MoybtJhzYz62OQF/WPglAvFqys9kfyHzSkJ+J\nM/LPNUFSvEC0mUqQq/rOR5YCbg9Gfu3KxzsPyT230YcpePH9t+Q1t4uXOxTRRYf0\nyU7ya7mpDnSDLtauGrUaYcoRjpR8HtCE/YhZboENAoGAJACfDAVl53iEneLwRjOi\nQdsBWgBe3DYB69NtkGCfyFv9khlV0XmyDPUa6othyUWWlPCxU+FOZ6pPg6nEPxia\n5vYsGa5fy02UbYjEIOSusPa6lis5VujuDBIfNK9zGcrj0NCPPqLoBJBgOibHUy/7\n2tjQn+vWa3YS0k7oALODbbo=\n-----END PRIVATE KEY-----\n",
+  "client_email": "mobisplit-eas-builder@mobisplit.iam.gserviceaccount.com",
+  "client_id": "102373640383900043808",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/mobisplit-eas-builder%40mobisplit.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}

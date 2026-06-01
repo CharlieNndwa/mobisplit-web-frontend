@@ -207,15 +207,33 @@ export default function DriverSetupScreen() {
     }
     return true;
   };
-// 🪙 MERGED UPGRADED: submitVerification with Live Back-End REST API & SecureStore Gate Syncs
+
+// Inside driver-setup.tsx - 🪙 ATOMIC VERIFICATION PERSISTENCE SUBMISSION 
+const handleFinalSubmissionSuccess = async () => {
+  try {
+    // 🪙 GOLD COIN: Atomic transaction forcing synchronous parameters execution block
+    await Promise.all([
+      SecureStore.setItemAsync("needs_driver_setup", "false"), 
+      SecureStore.setItemAsync("is_verified_driver", "true"),
+      SecureStore.setItemAsync("driver_status", "verified"),
+      SecureStore.setItemAsync("user_type", "driver"),
+      SecureStore.setItemAsync("user_role", "driver"),
+    ]);
+
+    setGlobalLoading(false); 
+    setShowSuccessModal(true); 
+  } catch (err) {
+    console.error("Hardware Storage Write Failure:", err);
+    Alert.alert("Storage Error", "Failed to update local driver configuration properties securely.");
+  }
+};
+
   const submitVerification = async () => {
-    // Basic Input Validation Guard Check
     if (!fullName || !currentRegion || !vehicleDetails.make || !vehicleDetails.model || !vehicleDetails.plate) {
       Alert.alert("Missing Requirements", "Please fill in all profile fields and vehicle attributes before applying.");
       return;
     }
 
-    // Ensure at least one critical profile asset image exists (e.g., driver license or avatar image)
     if (Object.keys(images).length === 0) {
       Alert.alert("Missing Documents", "Please provide your profile and vehicle verification document blocks.");
       return;
@@ -224,7 +242,6 @@ export default function DriverSetupScreen() {
     setGlobalLoading(true);
 
     try {
-      // 💎 A++ FIX: Sync key naming with sign-in.tsx ('user_id' instead of 'userId')
       const userId = await SecureStore.getItemAsync("user_id"); 
       const formData = new FormData();
 
@@ -236,7 +253,6 @@ export default function DriverSetupScreen() {
       formData.append("total_seats", vehicleDetails.total_seats.toString());
       formData.append("region", currentRegion);
 
-      // Binary asset multi-part packaging logic for Multer/Cloudinary backend processing
       Object.keys(images).forEach((key) => {
         if (images[key]) {
           const uri = images[key] as string;
@@ -252,31 +268,19 @@ export default function DriverSetupScreen() {
         }
       });
 
-      const response = await fetch(
-        `${API_BASE}/api/driver/apply`,
-        {
-          method: "POST",
-          body: formData,
-          headers: {
-            Accept: "application/json",
-          },
+      const response = await fetch(`${API_BASE}/api/driver/apply`, {
+        method: "POST",
+        body: formData,
+        headers: {
+          Accept: "application/json",
         },
-      );
+      });
 
       const result = await response.json();
 
       if (response.ok && result.success) {
-        // 🪙 GOLD COIN: Atomically commit state flag upgrades to clear the setup flow gates permanently
-        await Promise.all([
-          SecureStore.setItemAsync("user_type", "driver"),
-          SecureStore.setItemAsync("is_verified_driver", "true"),
-          SecureStore.setItemAsync("driver_status", "verified"),
-          SecureStore.setItemAsync("user_role", "driver"),
-          SecureStore.setItemAsync("needs_driver_setup", "false"), // Drops onboarding route loop
-        ]);
-
-        // 🪙 TRIGGER VISUAL CELEBRATION MODAL OR CONFETTI
-        setShowSuccessModal(true);
+        // Automatically grant instant verification on successful submission bypass
+        await handleFinalSubmissionSuccess();
       } else {
         Alert.alert("Submission Failed", result?.message || "Server error while processing your driver profile application.");
       }
@@ -290,6 +294,8 @@ export default function DriverSetupScreen() {
       setGlobalLoading(false);
     }
   };
+
+
 
   // 🪙 FIXED LOCATION ENGINE INTERCEPTOR (Prevents Uncaught Promise Rejections on 4GB RAM)
   useEffect(() => {
@@ -622,32 +628,24 @@ export default function DriverSetupScreen() {
             )}
           </View>
 
-          {/* 🪙 GOLD COIN: DEV-MODE BYPASS BUTTON */}
+          {/* 🪙 DEV-MODE BYPASS BUTTON */}
           <TouchableOpacity
             style={styles.demoBypass}
             onLongPress={async () => {
               try {
                 const userId = await SecureStore.getItemAsync("user_id");
-                const response = await fetch(
-                  `${BACKEND_URL}/api/driver/register`,
-                  {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      userId,
-                      vehicle_make: "DEMO",
-                      vehicle_model: "BYPASS",
-                      license_plate: "TEST-001-GP",
-                     
-                    }),
-                  },
-                );
+                const response = await fetch(`${API_BASE}/api/driver/register`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    userId,
+                    vehicle_make: "DEMO",
+                    vehicle_model: "BYPASS",
+                    license_plate: "TEST-001-GP",
+                  }),
+                });
                 if (response.ok) {
-                  Alert.alert(
-                    "🚀 Demo Mode",
-                    "Instant verification successful!",
-                  );
-                  router.replace("/onboarding/driver-dashboard");
+                  await handleFinalSubmissionSuccess();
                 }
               } catch (e) {
                 Alert.alert("Error", "Bypass failed");

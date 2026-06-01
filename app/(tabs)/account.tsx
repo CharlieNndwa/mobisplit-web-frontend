@@ -47,24 +47,31 @@ export default function AccountScreen() {
   const [fullName, setFullName] = useState("Mobisplit User");
   const [isVerifiedDriver, setIsVerifiedDriver] = useState(false); // Added missing state
 
- // Single Synchronized Pipeline across Focus States
+  // 🪙 STRUCTURAL SINGLE REPOSITORY STATE PIPELINE
+  const [accountContext, setAccountContext] = useState({
+    role: "rider",
+    isVerified: false,
+    vehicleDetails: { make: "", model: "", plate: "" }
+  });
+
+// =========================================================
+  // 🪙 UNIFIED INSTANT-VERIFICATION SYNCHRONIZATION PIPELINE 
+  // =========================================================
   const syncAccountState = useCallback(async () => {
     try {
-      // 1. Instantly pull latest values stored locally to eliminate layout flashes
       const uid = await SecureStore.getItemAsync("user_id");
       const savedName = await SecureStore.getItemAsync("user_full_name");
       const savedRole = await SecureStore.getItemAsync("user_role") || await SecureStore.getItemAsync("user_type") || "rider";
       const verifiedStatus = await SecureStore.getItemAsync("is_verified_driver");
-      const token = await SecureStore.getItemAsync("user_token"); // Ensure token is loaded
+      const token = await SecureStore.getItemAsync("user_token");
 
       if (uid) setUserId(uid);
       if (savedName) setFullName(savedName);
       setUserRole(savedRole);
-      setIsVerifiedDriver(verifiedStatus === "true");
+      setIsVerifiedDriver(verifiedStatus === "true" || savedRole === "driver");
 
       if (!uid) return;
 
-      // 2. Query Remote Server Framework with standard token verification
       const response = await fetch(`${API_URL}/api/user/status/${uid}`, {
         headers: {
           "Content-Type": "application/json",
@@ -76,24 +83,23 @@ export default function AccountScreen() {
       const data = await response.json();
 
       if (data.success && data.status) {
-        // Fallback checks to prioritize actual driver status flags
-        const dbRole = data.status.role || (data.status.is_driver ? "driver" : "rider");
-        const serverVerified = data.status.driver_status === "verified" || data.status.driver_status === "approved" || data.status.is_driver === true;
+        // Instant verification logic: If role or status indicates driver, verify instantly
+        const isServerDriver = data.status.role === "driver" || data.status.driver_status === "VERIFIED";
+        const dbRole = isServerDriver ? "driver" : "rider";
 
         setUserRole(dbRole);
-        setIsVerifiedDriver(serverVerified);
+        setIsVerifiedDriver(isServerDriver);
 
-        // Commit downstream transformations back to persistent storage
         await SecureStore.setItemAsync("user_role", dbRole);
         await SecureStore.setItemAsync("user_type", dbRole);
-        await SecureStore.setItemAsync("is_verified_driver", String(serverVerified));
+        await SecureStore.setItemAsync("is_verified_driver", String(isServerDriver));
       }
     } catch (error) {
       console.error("🔒 High-Priority Profile Sync Intercept Failure:", error);
     }
   }, []);
 
-  // Sync on every screen look-up focus loop
+// Sync state loop every time screen gets brought into active layout focus
   useFocusEffect(
     useCallback(() => {
       syncAccountState();
@@ -166,14 +172,14 @@ export default function AccountScreen() {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.5, // 🪙 Optimized for your 4GB RAM laptop
+      quality: 0.5, // 🪙 Conducive for 4GB RAM processing limits
     });
 
     if (!result.canceled) {
       const uri = result.assets[0].uri;
       setProfileImage(uri);
-      // 🪙 Save it permanently
       await SecureStore.setItemAsync(IMAGE_KEY, uri);
+      await uploadImageToServer(uri);
     }
   };
 
@@ -218,7 +224,7 @@ export default function AccountScreen() {
     await SecureStore.deleteItemAsync(IMAGE_KEY);
   };
 
-  // 🪙 UPDATED: Comprehensive Sign Out Logic in account.tsx
+// 🪙 HARDENED: Thorough clear down sequence removing session state completely
   const handleSignOut = () => {
     Alert.alert("Sign Out", "Are you sure you want to sign out?", [
       { text: "Cancel", style: "cancel" },
@@ -227,27 +233,24 @@ export default function AccountScreen() {
         onPress: async () => {
           setLoading(true);
           try {
-            // 1. Clear Auth & Session Keys
+            await SecureStore.deleteItemAsync("user_id");
             await SecureStore.deleteItemAsync("userId");
             await SecureStore.deleteItemAsync("profile_id");
             await SecureStore.deleteItemAsync("user_token");
-            await SecureStore.deleteItemAsync("user_session"); // 🪙 CRITICAL FIX
+            await SecureStore.deleteItemAsync("user_session"); 
 
-            // 2. Clear Role & State Keys
-            await SecureStore.deleteItemAsync("user_role"); // Standardized key
-            await SecureStore.deleteItemAsync("user_type"); // Legacy key (for safety)
+            await SecureStore.deleteItemAsync("user_role"); 
+            await SecureStore.deleteItemAsync("user_type"); 
             await SecureStore.deleteItemAsync("is_verified_driver");
             await SecureStore.deleteItemAsync("needs_driver_setup");
 
-            // 3. Clear Cached Profile Data
-            await SecureStore.deleteItemAsync(IMAGE_KEY); // "user_profile_image"
-            await SecureStore.deleteItemAsync(USER_NAME_KEY); // "user_full_name"
+            await SecureStore.deleteItemAsync(IMAGE_KEY); 
+            await SecureStore.deleteItemAsync(USER_NAME_KEY); 
             await SecureStore.deleteItemAsync("email");
             await SecureStore.deleteItemAsync("saved_email");
             await SecureStore.deleteItemAsync("saved_password");
             await SecureStore.deleteItemAsync("phone");
 
-            // 4. Reset Navigation to Gateway
             router.replace("/(auth)/gateway");
           } catch (error) {
             console.error("Logout Error:", error);
@@ -287,27 +290,20 @@ export default function AccountScreen() {
   return (
     <View style={styles.container}>
       <SafeAreaView style={{ flex: 1 }}>
-        {/* VERIFIED BADGE SYSTEM RENDER ENGINE */}
+     
       <View style={styles.badgeAnchor}>
         <View
           style={[
             styles.verifiedBadge,
             {
               backgroundColor: "#0F172A",
-              borderColor:
-                userRole === "driver"
-                  ? isVerifiedDriver
-                    ? "#FDE047" // Verified Driver (Yellow Gold Accent)
-                    : "#475569" // Pending Driver (Muted Slate)
-                  : "#10B981", // Rider Verified (Lime Green)
+              // Gold for Live Active Drivers, Lime for active verified Riders
+              borderColor: (userRole === "driver" && isVerifiedDriver) ? "#FDE047" : "#10B981", 
             },
           ]}
         >
-          {userRole === "driver" ? (
-            <ShieldCheck
-              size={14}
-              color={isVerifiedDriver ? "#FDE047" : "#64748B"}
-            />
+          {(userRole === "driver" && isVerifiedDriver) ? (
+            <ShieldCheck size={14} color="#FDE047" />
           ) : (
             <CheckCircle2 size={14} color="#10B981" />
           )}
@@ -315,23 +311,11 @@ export default function AccountScreen() {
           <Text
             style={[
               styles.badgeText,
-              {
-                color:
-                  userRole === "driver"
-                    ? isVerifiedDriver
-                      ? "#FDE047"
-                      : "#64748B"
-                    : "#10B981",
-                fontWeight: "900",
-                fontSize: 11,
-                marginLeft: 5
-              },
+              { color: (userRole === "driver" && isVerifiedDriver) ? "#FDE047" : "#10B981" },
             ]}
           >
-            {userRole === "driver"
-              ? isVerifiedDriver
-                ? "VERIFIED DRIVER"
-                : "PENDING APPROVAL"
+            {userRole === "driver" 
+              ? (isVerifiedDriver ? "VERIFIED DRIVER" : "PENDING APPROVAL") 
               : "VERIFIED RIDER"}
           </Text>
         </View>
@@ -396,6 +380,61 @@ export default function AccountScreen() {
             </TouchableOpacity>
           </View>
 
+         {/* =========================================================
+    🪙 LEGO INTEGRATED VERIFIED DRIVER DOSSIER PROFILE CARD
+========================================================= */}
+{userRole === "driver" && isVerifiedDriver && (
+  <View style={styles.legoDossierWrapper}>
+    <View style={[styles.legoDossierShadow, { backgroundColor: "#581C87" }]} />
+    <View 
+      style={[
+        styles.legoDossierMain, 
+        { 
+          backgroundColor: "#7E22CE", 
+          borderColor: "#FDE047",
+          flexDirection: 'column', 
+          alignItems: 'stretch', 
+          padding: 20, 
+          height: 'auto' 
+        }
+      ]}
+    >
+      
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+        <ShieldCheck size={22} color="#FDE047" />
+        <Text style={{ color: "#FFF", fontWeight: "900", fontSize: 16, letterSpacing: 0.5 }}>
+          VERIFIED SYSTEM CAPTAIN
+        </Text>
+      </View>
+
+      {/* Optional Fallbacks if global context object isn't populated yet */}
+      <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 14, fontWeight: "700", marginBottom: 4 }}>
+        Vehicle: {accountContext.vehicleDetails.make || "BMW"} {accountContext.vehicleDetails.model || "320i (E46)"}
+      </Text>
+      <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 14, fontWeight: "700", marginBottom: 15 }}>
+        License Plate: {accountContext.vehicleDetails.plate || "MOBI-SPLIT-GP"}
+      </Text>
+
+      <TouchableOpacity 
+        style={{
+          backgroundColor: "#0F172A",
+          paddingVertical: 14,
+          borderRadius: 14,
+          alignItems: 'center',
+          borderWidth: 1.5,
+          borderColor: '#FDE047'
+        }} 
+        onPress={() => router.push("/onboarding/driver-dashboard")}
+      >
+        <Text style={{ color: "#FDE047", fontWeight: "900", fontSize: 13, letterSpacing: 1 }}>
+          LAUNCH DRIVER-DASHBOARD
+        </Text>
+      </TouchableOpacity>
+
+    </View>
+  </View>
+)}
+
           <View style={styles.section}>
          
             <LegoPill
@@ -407,26 +446,26 @@ export default function AccountScreen() {
               onPress={() => router.push("/profile")}
             />
 
-               {/* 🪙 CONFIRMED: account.tsx Multi-State Structural Rendering Panel */}
-            {isDriver || userRole === "driver" ? (
-              <LegoPill
-                title="DRIVER DASHBOARD"
-                subtitle="Manage trips & earnings"
-                icon={LayoutDashboard}
-                color="#7E22CE"
-                shadowColor="#581C87"
-                onPress={() => router.push("/onboarding/driver-dashboard")}
-              />
-            ) : (
-              <LegoPill
-                title="EARN BY DRIVING"
-                subtitle="Apply to become a MobiSplit driver"
-                icon={Car}
-                color="#10B981"
-                shadowColor="#065F46"
-                onPress={() => router.push("/onboarding/driver-setup")}
-              />
-            )}
+           {/* 🪙 INSTANT STATE ROUTING GATES */}
+          {userRole === "driver" || isVerifiedDriver ? (
+            <LegoPill
+              title="LIVE DRIVER ROOM"
+              subtitle="Launch active tracking & trips"
+              icon={LayoutDashboard}
+              color="#7E22CE"
+              shadowColor="#581C87"
+              onPress={() => router.push("/onboarding/driver-dashboard")}
+            />
+          ) : (
+            <LegoPill
+              title="EARN BY DRIVING"
+              subtitle="Apply to become a MobiSplit driver"
+              icon={ Car}
+              color="#10B981"
+              shadowColor="#065F46"
+              onPress={() => router.push("/onboarding/driver-setup")}
+            />
+          )}
 
             <LegoPill
               title="REFER & EARN"
@@ -620,4 +659,13 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   logoutText: { color: "#EF4444", fontWeight: "900", fontSize: 16 },
+  // Dossier Card Styles (Optimized to expand cleanly with layout additions)
+  legoDossierWrapper: { marginHorizontal: 20, position: "relative", marginBottom: 25 },
+  legoDossierMain: { borderRadius: 24, borderWidth: 2, padding: 15, zIndex: 2 },
+  legoDossierShadow: { position: "absolute", top: 5, left: 0, right: 0, bottom: -5, borderRadius: 24, zIndex: 1, borderWidth: 2, borderColor: "#000" },
+  dossierHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 },
+  dossierHeaderText: { color: "#FFF", fontWeight: "900", fontSize: 14, letterSpacing: 0.5 },
+  dossierText: { color: "#94A3B8", fontSize: 13, fontWeight: "700", marginBottom: 4 },
+  dossierButton: { backgroundColor: "#10B981", borderRadius: 10, paddingVertical: 8, marginTop: 8, alignItems: "center" },
+  dossierButtonText: { color: "#000", fontWeight: "900", fontSize: 11 }
 });

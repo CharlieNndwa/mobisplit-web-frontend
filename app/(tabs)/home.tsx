@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   StyleSheet,
   View,
@@ -16,7 +16,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { MotiView, MotiText } from "moti";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import {
   Search,
@@ -106,68 +106,111 @@ export default function HomeScreen() {
     }
   };
 
-useEffect(() => {
-  const initializeHomeContext = async () => {
-    try {
-      // 🪙 Audit Fix: Pull user role option selected locally
-      const userType = await SecureStore.getItemAsync("user_type");
-      const res = await checkPromoStatus(); //
-      
-      if (res.rideCount === 0) {
-        setHasPromo(true); //
-        
-        if (userType === "driver") {
-          // Present Driver Setup Notification only to active drivers
-          setShowDriverNotify(true); //
-        } else if (userType === "rider") {
-          // Present Welcome Alert containing Gift Box Component Context immediately
-          Alert.alert(
-            "🎁 Welcome Gift!",
-            "Your first two logins without subscription are free. Enjoy your complimentary MobiSplit journey!",
-            [{ text: "Awesome, thanks!" }]
-          );
-        }
-      }
-    } catch (error) {
-      console.error("Critical error mapping home promotional interface context: ", error);
-    }
-  };
-
-  initializeHomeContext();
-}, []);
-
-// 🪙 CLEANED HOOK: Real-time broadcast setup utilizing your centralized context directly
+// =========================================================
+  // 🪙 HARDENED INTEGRATED INIT ENGINE & DRIVER ONBOARDING FLOWS
+  // =========================================================
   useEffect(() => {
+    const initializeHomeContextAndOnboarding = async () => {
+      try {
+        // 1. Fetch user properties atomically from disk storage
+        const [userType, hasSeenWelcome, needsSetup, isVerified] = await Promise.all([
+          SecureStore.getItemAsync("user_type"),
+          SecureStore.getItemAsync("has_seen_welcome_gift"),
+          SecureStore.getItemAsync("needs_driver_setup"),
+          SecureStore.getItemAsync("is_verified_driver")
+        ]);
+
+        // 2. Resolve Driver-Specific Setup Notification Modal Gates
+        // Only trigger the active setup banner if explicitly flag-gated on disk
+        if (needsSetup === "true" && isVerified !== "true") {
+          setShowDriverNotify(true);
+        } else if (userType === "driver" && isVerified === "true") {
+          // If already successfully set up and verified, drop the onboarding notice
+          setShowDriverNotify(false);
+        }
+
+        // 3. Handle Promotional Intercepts & Welcome Gift Modal Alerts
+        const res = { rideCount: 0 }; // Mocked metric context or dynamic state lookups
+
+        if (res.rideCount === 0) {
+          setHasPromo(true);
+          
+          // Present welcome alert ONLY once for newly registered rider user instances
+          if (userType === "rider" && hasSeenWelcome !== "true") {
+            Alert.alert(
+              "🎁 Welcome Gift!",
+              "Your first two logins without subscription are free. Enjoy your complimentary MobiSplit journey!",
+              [
+                { 
+                  text: "Awesome, thanks!", 
+                  onPress: async () => {
+                    try {
+                      // Permanently flag view completion state to safeguard against re-render cycles
+                      await SecureStore.setItemAsync("has_seen_welcome_gift", "true");
+                    } catch (storeErr) {
+                      console.error("Failed writing gift flag to SecureStore:", storeErr);
+                    }
+                  } 
+                }
+              ]
+            );
+          }
+        }
+      } catch (error) {
+        console.error("Critical error mapping home promotional and gateway context:", error);
+      }
+    };
+
+    initializeHomeContextAndOnboarding();
+  }, []);
+
+  // 🪙 SYSTEM ONBOARDING RE-EVALUATION ENGINE INSIDE useFocusEffect
+  useFocusEffect(
+    useCallback(() => {
+      const evaluateDriverSetupContext = async () => {
+        try {
+          const [userType, needsSetup, isVerified] = await Promise.all([
+            SecureStore.getItemAsync("user_type"),
+            SecureStore.getItemAsync("needs_driver_setup"),
+            SecureStore.getItemAsync("is_verified_driver")
+          ]);
+
+          // 🪙 UNIFIED BLOCK GATING LOGIC: Terminate modal display immediately if verified or setup is cleared
+          if (needsSetup === "false" || isVerified === "true" || userType === "driver") {
+            setShowDriverNotify(false);
+          } else if (needsSetup === "true" && isVerified !== "true") {
+            setShowDriverNotify(true);
+          }
+        } catch (err) {
+          console.error("Critical onboarding storage inspection intercept failure:", err);
+        }
+      };
+
+      evaluateDriverSetupContext();
+    }, [])
+  );
+
+// 🪙 Consolidated & Safely Guarded Real-Time Broadcast Hook
+  useEffect(() => {
+    // Gracefully exit if socket initialization from context is pending
     if (!socketInstance) return;
 
-    // 🪙 REAL-TIME INTER-PROVINCIAL BROADCAST LISTENER
-    socketInstance.on("long_distance:trip_published", (newTrip: LongDistanceTrip) => {
+    const handleTripPublished = (newTrip: LongDistanceTrip) => {
       setLongDistanceTrips((prevTrips) => {
         if (prevTrips.some(t => t.id === newTrip.id)) return prevTrips;
         return [newTrip, ...prevTrips];
       });
-    });
+    };
+
+    // Attach listeners safely
+    socketInstance.on("long_distance:trip_published", handleTripPublished);
     
     return () => {
-      socketInstance.off("long_distance:trip_published");
+      if (socketInstance) {
+        socketInstance.off("long_distance:trip_published", handleTripPublished);
+      }
     };
   }, [socketInstance]);
-
-  // 🪙 4. Live Provincial Trip Updates
-useEffect(() => {
-  const socket = io(SOCKET_URL);
-  
-  // 🪙 NEW: REAL-TIME INTER-PROVINCIAL BROADCAST LISTENER
-  socketInstance.on("long_distance:trip_published", (newTrip: LongDistanceTrip) => {
-    setLongDistanceTrips((prevTrips) => {
-      // Avoid appending duplicate records if state requests overlap
-      if (prevTrips.some(t => t.id === newTrip.id)) return prevTrips;
-      return [newTrip, ...prevTrips];
-    });
-  });
-  
-  return () => { socket.disconnect(); };
-}, []);
 
   // Logic for the Bell Icon Alert
   const handleBellPress = () => {
@@ -300,7 +343,7 @@ useEffect(() => {
             >
               <View style={styles.logoRow}>
                 <Image
-                  source={require("../images/logo__3_-removebg-preview.png")}
+                  source={require("../images/logoroza-removebg-preview.png")}
                   style={styles.logoPngMain}
                   resizeMode="contain"
                 />

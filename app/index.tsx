@@ -5,7 +5,7 @@ import * as SecureStore from "expo-secure-store";
 import { LinearGradient } from "expo-linear-gradient";
 
 const { width } = Dimensions.get("window");
-const LOGO_IMAGE = require("./images/logo__3_-removebg-preview.png");
+const LOGO_IMAGE = require("./images/logoroza-removebg-preview.png");
 
 export default function LoadingScreen() {
   const router = useRouter();
