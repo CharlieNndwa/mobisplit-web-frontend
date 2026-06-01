@@ -54,9 +54,7 @@ export default function AccountScreen() {
     vehicleDetails: { make: "", model: "", plate: "" }
   });
 
-// =========================================================
-  // 🪙 UNIFIED INSTANT-VERIFICATION SYNCHRONIZATION PIPELINE 
-  // =========================================================
+// 🪙 Update 3: Enforcing synchronization mapping into layout components via dynamic endpoint profiles
   const syncAccountState = useCallback(async () => {
     try {
       const uid = await SecureStore.getItemAsync("user_id");
@@ -65,10 +63,25 @@ export default function AccountScreen() {
       const verifiedStatus = await SecureStore.getItemAsync("is_verified_driver");
       const token = await SecureStore.getItemAsync("user_token");
 
+      const localMake = await SecureStore.getItemAsync("vehicleMake") || "";
+      const localModel = await SecureStore.getItemAsync("vehicleModel") || "";
+      const localPlate = await SecureStore.getItemAsync("vehiclePlate") || "";
+
       if (uid) setUserId(uid);
       if (savedName) setFullName(savedName);
       setUserRole(savedRole);
       setIsVerifiedDriver(verifiedStatus === "true" || savedRole === "driver");
+
+      setAccountContext(prev => ({
+        ...prev,
+        role: savedRole,
+        isVerified: verifiedStatus === "true" || savedRole === "driver",
+        vehicleDetails: {
+          make: localMake || prev.vehicleDetails.make,
+          model: localModel || prev.vehicleDetails.model,
+          plate: localPlate || prev.vehicleDetails.plate
+        }
+      }));
 
       if (!uid) return;
 
@@ -83,16 +96,32 @@ export default function AccountScreen() {
       const data = await response.json();
 
       if (data.success && data.status) {
-        // Instant verification logic: If role or status indicates driver, verify instantly
-        const isServerDriver = data.status.role === "driver" || data.status.driver_status === "VERIFIED";
+        const isServerDriver = data.status.role === "driver" || data.status.driver_status === "verified" || data.status.driver_status === "VERIFIED";
         const dbRole = isServerDriver ? "driver" : "rider";
 
         setUserRole(dbRole);
         setIsVerifiedDriver(isServerDriver);
 
+        const serverMake = data.status.vehicleMake || data.status.vehicle_make || localMake || "BMW";
+        const serverModel = data.status.vehicleModel || data.status.vehicle_model || localModel || "320i (E46)";
+        const serverPlate = data.status.vehiclePlate || data.status.plate_number || localPlate || "MOBI-SPLIT-GP";
+
+        setAccountContext({
+          role: dbRole,
+          isVerified: isServerDriver,
+          vehicleDetails: {
+            make: serverMake,
+            model: serverModel,
+            plate: serverPlate
+          }
+        });
+
         await SecureStore.setItemAsync("user_role", dbRole);
         await SecureStore.setItemAsync("user_type", dbRole);
         await SecureStore.setItemAsync("is_verified_driver", String(isServerDriver));
+        await SecureStore.setItemAsync("vehicleMake", serverMake);
+        await SecureStore.setItemAsync("vehicleModel", serverModel);
+        await SecureStore.setItemAsync("vehiclePlate", serverPlate);
       }
     } catch (error) {
       console.error("🔒 High-Priority Profile Sync Intercept Failure:", error);
@@ -403,7 +432,7 @@ export default function AccountScreen() {
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 }}>
         <ShieldCheck size={22} color="#FDE047" />
         <Text style={{ color: "#FFF", fontWeight: "900", fontSize: 16, letterSpacing: 0.5 }}>
-          VERIFIED SYSTEM CAPTAIN
+          VERIFIED DRIVER
         </Text>
       </View>
 

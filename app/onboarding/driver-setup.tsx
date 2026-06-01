@@ -208,25 +208,27 @@ export default function DriverSetupScreen() {
     return true;
   };
 
-// Inside driver-setup.tsx - 🪙 ATOMIC VERIFICATION PERSISTENCE SUBMISSION 
-const handleFinalSubmissionSuccess = async () => {
-  try {
-    // 🪙 GOLD COIN: Atomic transaction forcing synchronous parameters execution block
-    await Promise.all([
-      SecureStore.setItemAsync("needs_driver_setup", "false"), 
-      SecureStore.setItemAsync("is_verified_driver", "true"),
-      SecureStore.setItemAsync("driver_status", "verified"),
-      SecureStore.setItemAsync("user_type", "driver"),
-      SecureStore.setItemAsync("user_role", "driver"),
-    ]);
+// 🪙 Update 1: Forcing synchronous camelCase parameters execution cache block upon successful verification
+  const handleFinalSubmissionSuccess = async (makeVal?: string, modelVal?: string, plateVal?: string) => {
+    try {
+      await Promise.all([
+        SecureStore.setItemAsync("needs_driver_setup", "false"), 
+        SecureStore.setItemAsync("is_verified_driver", "true"),
+        SecureStore.setItemAsync("driver_status", "verified"),
+        SecureStore.setItemAsync("user_type", "driver"),
+        SecureStore.setItemAsync("user_role", "driver"),
+        SecureStore.setItemAsync("vehicleMake", makeVal || vehicleDetails.make || "BMW"),
+        SecureStore.setItemAsync("vehicleModel", modelVal || vehicleDetails.model || "320i (E46)"),
+        SecureStore.setItemAsync("vehiclePlate", plateVal || vehicleDetails.plate || "MOBI-SPLIT-GP"),
+      ]);
 
-    setGlobalLoading(false); 
-    setShowSuccessModal(true); 
-  } catch (err) {
-    console.error("Hardware Storage Write Failure:", err);
-    Alert.alert("Storage Error", "Failed to update local driver configuration properties securely.");
-  }
-};
+      setGlobalLoading(false); 
+      setShowSuccessModal(true); 
+    } catch (err) {
+      console.error("Hardware Storage Write Failure:", err);
+      Alert.alert("Storage Error", "Failed to update local driver configuration properties securely.");
+    }
+  };
 
   const submitVerification = async () => {
     if (!fullName || !currentRegion || !vehicleDetails.make || !vehicleDetails.model || !vehicleDetails.plate) {

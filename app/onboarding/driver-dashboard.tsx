@@ -68,7 +68,7 @@ export default function DriverDashboardScreen() {
   const [activeRideRequest, setActiveRideRequest] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  // 🪙 ATOMIC SYNC: Fetch wallet balances, earnings, and driver verification profiles dynamically from endpoints
+ // 🪙 Update 2: Extracting vehicle profile components using unified local hardware cache lookups
   const fetchRealTimeDriverData = useCallback(async () => {
     try {
       const userId = await SecureStore.getItemAsync("user_id");
@@ -76,26 +76,28 @@ export default function DriverDashboardScreen() {
       const storedImage = await SecureStore.getItemAsync("driver_profile_img_uri");
       const token = await SecureStore.getItemAsync("user_token");
 
+      const cachedMake = await SecureStore.getItemAsync("vehicleMake") || "";
+      const cachedModel = await SecureStore.getItemAsync("vehicleModel") || "";
+      const cachedPlate = await SecureStore.getItemAsync("vehiclePlate") || "";
+
       if (storedImage) {
         setProfileImageUri(storedImage);
       }
 
       if (userId) {
-        // Initialize base profile with hardware stores fallbacks
         let initialProfile = {
           id: userId,
           name: storedName || "Verified Driver",
-          rating: "4.95",
+          rating: "5.0",
           earnings: "R0.00",
           trips: "0",
           hours: "0.0",
-          vehicleModel: "BMW 320i (E46)",
-          vehiclePlate: "GP-REG-WP",
-          licenseStatus: "Verified",
-          permitStatus: "Active",
+          vehicleModel: cachedMake ? `${cachedMake} ${cachedModel}`.trim() : "BMW 320i (E46)",
+          vehiclePlate: cachedPlate || "MOBI-SPLIT-GP",
+          licenseStatus: "Verified ✅",
+          permitStatus: "Active Transmit",
         };
 
-        // 🪙 SYSTEM NETWORK INTEGRATION: Pull live balance totals directly tied to wallet.tsx allocations
         try {
           const response = await fetch(`${SOCKET_URL}/api/users/profile`, {
             method: "GET",
@@ -112,12 +114,17 @@ export default function DriverDashboardScreen() {
               initialProfile.trips = String(serverData.driverMetrics.trips || 0);
               initialProfile.hours = String(serverData.driverMetrics.hours || 0.0);
               initialProfile.rating = String(serverData.driverMetrics.rating || "5.0");
-              initialProfile.vehicleModel = serverData.driverMetrics.vehicleModel || initialProfile.vehicleModel;
-              initialProfile.vehiclePlate = serverData.driverMetrics.vehiclePlate || initialProfile.vehiclePlate;
+              
+              if (serverData.driverMetrics.vehicleMake || serverData.driverMetrics.vehicleModel) {
+                initialProfile.vehicleModel = `${serverData.driverMetrics.vehicleMake || ''} ${serverData.driverMetrics.vehicleModel || ''}`.trim();
+              }
+              if (serverData.driverMetrics.vehiclePlate) {
+                initialProfile.vehiclePlate = serverData.driverMetrics.vehiclePlate;
+              }
             }
           }
         } catch (apiErr) {
-          console.log("Live production API metrics pull bypassed. Using local cached parameters.", apiErr);
+          console.log("Live API metrics fallback active.", apiErr);
         }
 
         setDriverProfile(initialProfile);
@@ -129,7 +136,6 @@ export default function DriverDashboardScreen() {
     }
   }, []);
 
-  // Guarantee up-to-date memory registers when arriving from any navigation focus pipeline
   useFocusEffect(
     useCallback(() => {
       fetchRealTimeDriverData();
