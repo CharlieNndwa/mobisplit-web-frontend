@@ -69,7 +69,7 @@ export default function DriverDashboardScreen() {
   const [activeRideRequest, setActiveRideRequest] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
- // 🪙 Update 2: Extracting vehicle profile components using unified local hardware cache lookups
+// 🪙 GOLD COIN: Real-Time driver profile retriever utilizing the corrected variable dynamic parameter strategy
   const fetchRealTimeDriverData = useCallback(async () => {
     try {
       const userId = await SecureStore.getItemAsync("user_id");
@@ -100,38 +100,33 @@ export default function DriverDashboardScreen() {
         };
 
         try {
-          const response = await fetch(`${SOCKET_URL}/api/users/profile`, {
+          // 🪙 GOLD COIN: Appended the actual user ID context parameter directly into the routing signature layout path
+          const response = await fetch(`${SOCKET_URL}/api/users/${userId}`, {
             method: "GET",
             headers: {
               "Content-Type": "application/json",
               "Authorization": `Bearer ${token}`
             }
           });
-          
+
           if (response.ok) {
             const serverData = await response.json();
-            if (serverData?.driverMetrics) {
-              initialProfile.earnings = serverData.driverMetrics.earnings || "R0.00";
-              initialProfile.trips = String(serverData.driverMetrics.trips || 0);
-              initialProfile.hours = String(serverData.driverMetrics.hours || 0.0);
-              initialProfile.rating = String(serverData.driverMetrics.rating || "5.0");
-              
-              if (serverData.driverMetrics.vehicleMake || serverData.driverMetrics.vehicleModel) {
-                initialProfile.vehicleModel = `${serverData.driverMetrics.vehicleMake || ''} ${serverData.driverMetrics.vehicleModel || ''}`.trim();
-              }
-              if (serverData.driverMetrics.vehiclePlate) {
-                initialProfile.vehiclePlate = serverData.driverMetrics.vehiclePlate;
-              }
+            if (serverData?.success && serverData?.user) {
+              initialProfile.name = serverData.user.full_name || initialProfile.name;
+              initialProfile.vehicleModel = serverData.user.vehicle_make 
+                ? `${serverData.user.vehicle_make} ${serverData.user.vehicle_model || ''}`.trim() 
+                : initialProfile.vehicleModel;
+              initialProfile.vehiclePlate = serverData.user.plate_number || initialProfile.vehiclePlate;
             }
           }
         } catch (apiErr) {
-          console.log("Live API metrics fallback active.", apiErr);
+          console.log("🪙 Core profile fetch fallback active:", apiErr);
         }
 
         setDriverProfile(initialProfile);
       }
     } catch (err) {
-      console.error("Critical hardware system storage read failure:", err);
+      console.error("🪙 Dashboard data initialization sync breakdown:", err);
     } finally {
       setLoading(false);
     }
