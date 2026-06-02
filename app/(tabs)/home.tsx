@@ -12,6 +12,7 @@ import {
   Platform,
   Linking, // 🪙 RESTORED IMPORT
   Alert,
+  Animated, // 🪙 ADDED: High-performance micro-animation core
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -34,13 +35,16 @@ import {
   MessageSquare, // 🪙 RESTORED IMPORT
   MapPin,
   Globe,
+  Award,
+  Megaphone,
+  Gift,
 } from "lucide-react-native";
 import io, { Socket } from "socket.io-client";
 import { useSocket } from '../../context/SocketContext';
 // --- Components ---
 import AdBanner from "../components/AdBanner";
 
-const { width } = Dimensions.get("window");
+const { width, height } = Dimensions.get("window");
 
 interface Prediction {
   id: string;
@@ -75,10 +79,31 @@ const BoltFeatureCard = ({ source }: { source: any }) => (
   </TouchableOpacity>
 );
 
+// 🪙 RESTORED COMPONENT DEFINITION TO PREVENT RUNTIME CRASHES
+const ServiceBubble = ({ name, icon, onPress }: any) => (
+  <TouchableOpacity
+    style={styles.bubbleItem}
+    onPress={onPress}
+    activeOpacity={0.7}
+  >
+    <View style={styles.bubbleCircle}>
+      <Image source={icon} style={styles.bubblePng} />
+    </View>
+    <Text style={styles.bubbleName}>{name}</Text>
+  </TouchableOpacity>
+);
+
 export default function HomeScreen() {
   const [showDriverNotify, setShowDriverNotify] = useState(false);
   const [hasPromo, setHasPromo] = useState(false);
-  const socketRef = useRef<Socket | null>(null);
+
+  // =========================================================
+  // 🪙 ADVERTISER ATTRACTION CAMPAIGN MODAL STATES
+  // =========================================================
+  const [showAdvertiserModal, setShowAdvertiserModal] = useState(false);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(0)).current;
+
   const { socket: socketInstance } = useSocket() as any;
   const router = useRouter();
   // 🪙 UPDATED: Moved these hooks INSIDE the component function
@@ -86,19 +111,17 @@ export default function HomeScreen() {
     LongDistanceTrip[]
   >([]);
 
-  // 🪙 Define the missing function to fix Error 2304
+  // 🪙 Define the missing function to fix Error 2304 & Double API Base Intercept
   const checkPromoStatus = async () => {
     try {
       const userId = await SecureStore.getItemAsync("userId");
       if (!userId) return { rideCount: 0 };
 
-      // Update with your actual NGROK/Backend URL
+      // 🧊 AUDIT REPAIR: Removed nested /api route duplication here
       const response = await fetch(
-        `${API_BASE}/api/activity/stats/${userId}`,
+        `${API_BASE}/activity/stats/${userId}`,
       );
       const data = await response.json();
-
-      // Logic: If user has 0 rides, they are "New"
       return { rideCount: data.totalRides || 0 };
     } catch (error) {
       console.error("Promo Check Error:", error);
@@ -107,35 +130,32 @@ export default function HomeScreen() {
   };
 
 // =========================================================
-  // 🪙 HARDENED INTEGRATED INIT ENGINE & DRIVER ONBOARDING FLOWS
+  // 🪙 HARDENED INTEGRATED INIT ENGINE & PROMO MODAL FLOWS
   // =========================================================
   useEffect(() => {
     const initializeHomeContextAndOnboarding = async () => {
       try {
-        // 1. Fetch user properties atomically from disk storage
-        const [userType, hasSeenWelcome, needsSetup, isVerified] = await Promise.all([
+        // Fetch properties atomically from local storage
+        const [userType, hasSeenWelcome, needsSetup, isVerified, hasSeenPromoModal] = await Promise.all([
           SecureStore.getItemAsync("user_type"),
           SecureStore.getItemAsync("has_seen_welcome_gift"),
           SecureStore.getItemAsync("needs_driver_setup"),
-          SecureStore.getItemAsync("is_verified_driver")
+          SecureStore.getItemAsync("is_verified_driver"),
+          SecureStore.getItemAsync("has_seen_advertiser_modal")
         ]);
 
-        // 2. Resolve Driver-Specific Setup Notification Modal Gates
-        // Only trigger the active setup banner if explicitly flag-gated on disk
         if (needsSetup === "true" && isVerified !== "true") {
           setShowDriverNotify(true);
         } else if (userType === "driver" && isVerified === "true") {
-          // If already successfully set up and verified, drop the onboarding notice
           setShowDriverNotify(false);
         }
 
-        // 3. Handle Promotional Intercepts & Welcome Gift Modal Alerts
-        const res = { rideCount: 0 }; // Mocked metric context or dynamic state lookups
+        // 🧊 OPTIMIZATION: Successfully removed static { rideCount: 0 } mock to hook live database sync
+        const res = await checkPromoStatus();
 
         if (res.rideCount === 0) {
           setHasPromo(true);
           
-          // Present welcome alert ONLY once for newly registered rider user instances
           if (userType === "rider" && hasSeenWelcome !== "true") {
             Alert.alert(
               "🎁 Welcome Gift!",
@@ -145,7 +165,6 @@ export default function HomeScreen() {
                   text: "Awesome, thanks!", 
                   onPress: async () => {
                     try {
-                      // Permanently flag view completion state to safeguard against re-render cycles
                       await SecureStore.setItemAsync("has_seen_welcome_gift", "true");
                     } catch (storeErr) {
                       console.error("Failed writing gift flag to SecureStore:", storeErr);
@@ -154,6 +173,21 @@ export default function HomeScreen() {
                 }
               ]
             );
+          } else if (hasSeenPromoModal !== "true") {
+            // 🪙 Trigger the custom Uber-esque campaign modal when a new account accesses the dashboard
+            setShowAdvertiserModal(true);
+            Animated.parallel([
+              Animated.timing(fadeAnim, {
+                toValue: 1,
+                duration: 400,
+                useNativeDriver: true,
+              }),
+              Animated.timing(slideAnim, {
+                toValue: 1,
+                duration: 500,
+                useNativeDriver: true,
+              })
+            ]).start();
           }
         }
       } catch (error) {
@@ -294,6 +328,43 @@ export default function HomeScreen() {
     // Optional: await SecureStore.setItemAsync("needs_driver_setup", "false");
     // if you want it to stay gone after clicking X
   };
+
+  // =========================================================
+  // 🪙 CAMPAIGN POP-UP MODAL DISMISS WITH DISK STATE WRITE
+  // =========================================================
+  const closeAdvertiserModal = async () => {
+    try {
+      await SecureStore.setItemAsync("has_seen_advertiser_modal", "true");
+    } catch (err) {
+      console.error("Failed mutating promo state flag to SecureStore:", err);
+    }
+    
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      })
+    ]).start(() => {
+      setShowAdvertiserModal(false);
+    });
+  };
+
+  // Interpolated Styles for Entry Animation Engine
+  const modalTranslateY = slideAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [300, 0]
+  });
+
+  const modalScale = slideAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.92, 1]
+  });
 
   return (
     <View style={styles.container}>
@@ -692,22 +763,116 @@ export default function HomeScreen() {
           <View style={{ height: Platform.OS === "ios" ? 120 : 100 }} />
         </ScrollView>
       </SafeAreaView>
+
+
+{/* =========================================================
+          🪙 PREMIUM GLOW-OUTLINED ADVERTISER CAMPAIGN POP-UP MODAL
+          ========================================================= */}
+      {showAdvertiserModal && (
+        <Animated.View style={[styles.modalOverlay, { opacity: fadeAnim }]}>
+          <Animated.View 
+            style={[
+              styles.campaignCard, 
+              { 
+                transform: [{ translateY: modalTranslateY }, { scale: modalScale }] 
+              }
+            ]}
+          >
+            {/* Header Marketing Image Box */}
+            <View style={styles.campaignHeroContainer}>
+              <Image 
+                source={{ uri: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=600&q=80" }} 
+                style={styles.campaignHeroImage}
+              />
+              <LinearGradient 
+                colors={["rgba(15,23,42,0.1)", "#0F172A"]} 
+                style={styles.campaignHeroGradient} 
+              />
+              <TouchableOpacity style={styles.campaignCloseBtn} onPress={closeAdvertiserModal}>
+                <X color="#FFF" size={18} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Content Space Container */}
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.campaignBody}>
+              <View style={styles.campaignTitleBlock}>
+                <Megaphone color="#00FFFF" size={20} style={{ marginRight: 8 }} />
+                <Text style={styles.campaignBadgeText}>PARTNER OPPORTUNITY</Text>
+              </View>
+              
+              <Text style={styles.campaignMainTitle}>MobiSplit Advertiser Attraction Campaign</Text>
+              <Text style={styles.campaignSubtitle}>Thousands of active riders see your brand daily. Capitalize on local partner perks:</Text>
+              
+              {/* Marketing Track Incentive Cards */}
+              <View style={styles.incentiveRow}>
+                <View style={styles.incentiveIconCircle}>
+                  <Gift color="#00FFFF" size={18} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.incentiveHeading}>3 Months Free Advertising</Text>
+                  <Text style={styles.incentiveParagraph}>Deploy targeted multi-format ad campaigns across primary rider channels absolutely free.</Text>
+                </View>
+              </View>
+
+              <View style={styles.incentiveRow}>
+                <View style={styles.incentiveIconCircle}>
+                  <Award color="#00FFFF" size={18} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.incentiveHeading}>R5,000 Event Sponsorship</Text>
+                  <Text style={styles.incentiveParagraph}>Unlock premium sponsorship injections directly earmarked for premier regional local group events.</Text>
+                </View>
+              </View>
+
+              <View style={styles.incentiveRow}>
+                <View style={styles.incentiveIconCircle}>
+                  <Zap color="#00FFFF" size={18} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.incentiveHeading}>Premium Placement Slots</Text>
+                  <Text style={styles.incentiveParagraph}>Gain prominent exposure within user reward milestones and dedicated real-time push tracks.</Text>
+                </View>
+              </View>
+
+              <View style={styles.incentiveRow}>
+                <View style={styles.incentiveIconCircle}>
+                  <Globe color="#00FFFF" size={18} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.incentiveHeading}>Community Spotlights</Text>
+                  <Text style={styles.incentiveParagraph}>Co-branded strategic advertising pushes distributed through MobiSplit's verified social channels.</Text>
+                </View>
+              </View>
+            </ScrollView>
+
+            {/* Action CTA Button */}
+            <View style={styles.campaignFooter}>
+              <TouchableOpacity 
+                activeOpacity={0.8} 
+                style={styles.campaignCtaBtn}
+                onPress={() => {
+                  closeAdvertiserModal();
+                  router.push("/onboarding/advertiser-registration");
+                }}
+              >
+                <LinearGradient 
+                  colors={["#00FFFF", "#1D4ED8"]} 
+                  start={{ x: 0, y: 0 }} 
+                  end={{ x: 1, y: 1 }} 
+                  style={styles.campaignCtaGradient}
+                >
+                  <Text style={styles.campaignCtaText}>Advertise With MobiSplit</Text>
+                  <ArrowRight color="#000" size={16} />
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        </Animated.View>
+      )}
     </View>
   );
-}
+} // 🧊 Clean closure boundary complete
 
-const ServiceBubble = ({ name, icon, onPress }: any) => (
-  <TouchableOpacity
-    style={styles.bubbleItem}
-    onPress={onPress}
-    activeOpacity={0.7}
-  >
-    <View style={styles.bubbleCircle}>
-      <Image source={icon} style={styles.bubblePng} />
-    </View>
-    <Text style={styles.bubbleName}>{name}</Text>
-  </TouchableOpacity>
-);
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#020617" },
@@ -1382,5 +1547,144 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "#00FFFF",
     zIndex: 10,
+  },
+// =========================================================
+  // 🪙 ADVERTISER CAMPAIGN MODAL PREMIUM SHADOW SHAPES
+  // =========================================================
+  modalOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(2,6,23,0.85)",
+    zIndex: 9999,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 24,
+  },
+  campaignCard: {
+    width: "100%",
+    maxHeight: height * 0.78,
+    backgroundColor: "#0F172A",
+    borderRadius: 30,
+    borderWidth: 2,
+    borderColor: "#00FFFF", // Neon Cyan Edge Profile
+    overflow: "hidden",
+    // Premium Glow Shadow Drop Logic
+    shadowColor: "#00FFFF",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 20,
+    elevation: 15,
+  },
+  campaignHeroContainer: {
+    height: 150,
+    width: "100%",
+    position: "relative",
+  },
+  campaignHeroImage: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
+  },
+  campaignHeroGradient: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 70,
+  },
+  campaignCloseBtn: {
+    position: "absolute",
+    top: 16,
+    right: 16,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(15,23,42,0.6)",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+  },
+  campaignBody: {
+    paddingHorizontal: 22,
+    paddingBottom: 20,
+  },
+  campaignTitleBlock: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  campaignBadgeText: {
+    color: "#00FFFF",
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 1.5,
+  },
+  campaignMainTitle: {
+    color: "#FFF",
+    fontSize: 22,
+    fontWeight: "900",
+    lineHeight: 28,
+    marginBottom: 8,
+  },
+  campaignSubtitle: {
+    color: "#94A3B8",
+    fontSize: 13,
+    fontWeight: "500",
+    lineHeight: 18,
+    marginBottom: 20,
+  },
+  incentiveRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 16,
+  },
+  incentiveIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: "rgba(0,255,255,0.08)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 14,
+    marginTop: 2,
+    borderWidth: 1,
+    borderColor: "rgba(0,255,255,0.2)",
+  },
+  incentiveHeading: {
+    color: "#FFF",
+    fontSize: 14,
+    fontWeight: "800",
+    marginBottom: 3,
+  },
+  incentiveParagraph: {
+    color: "#64748B",
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "500",
+  },
+  campaignFooter: {
+    padding: 20,
+    backgroundColor: "#0B1329",
+    borderTopWidth: 1,
+    borderColor: "rgba(255,255,255,0.04)",
+  },
+  campaignCtaBtn: {
+    width: "100%",
+    height: 54,
+    borderRadius: 16,
+    overflow: "hidden",
+  },
+  campaignCtaGradient: {
+    flex: 1,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 10,
+  },
+  campaignCtaText: {
+    color: "#000",
+    fontSize: 15,
+    fontWeight: "900",
+    letterSpacing: 0.3,
   },
 });
