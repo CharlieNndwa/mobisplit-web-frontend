@@ -24,23 +24,27 @@ const LOGO_IMG = require("../images/logo__3_-removebg-preview.png");
 export default function WelcomeScreen() {
   const router = useRouter();
 
-// 🪙 UPDATED: welcome.tsx handleGetStarted logic
+// welcome.tsx handleGetStarted logic
 const handleGetStarted = async () => {
   try {
-    // 🪙 Check if we already have a role from the Gateway/Login
-    const existingRole = await SecureStore.getItemAsync('user_role');
+    // 🧊 FIX: Standardized key to 'user_type' matching registration clusters to fix parsing crashes
+    const existingRole = await SecureStore.getItemAsync('user_type');
     
     if (!existingRole) {
-      // Only set default if for some reason it's missing
-      await SecureStore.setItemAsync('user_role', 'rider');
+      await SecureStore.setItemAsync('user_type', 'rider');
     }
     
-    // 🪙 Navigate to home screen
-    router.replace("/(tabs)/home");
+    // Ensure the baseline parameters are wiped before loading home layout
+    await SecureStore.deleteItemAsync('has_seen_advertiser_modal');
+    
+    // 🧊 ROUTE NAVIGATION RESETTING: Force dynamic routing parameters into Layout Tab
+    router.replace({
+      pathname: "/(tabs)/home",
+      params: { triggerPromo: "true" }
+    });
   } catch (error) {
-    console.error("Welcome Navigation Error:", error);
-    // Fallback just in case
-    router.replace("/(tabs)/home");
+    console.error("Welcome Navigation Error:", error); //[cite: 16]
+    router.replace("/(tabs)/home"); //[cite: 16]
   }
 };
 

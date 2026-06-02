@@ -66,6 +66,8 @@ export default function SignUpScreen() {
                   await SecureStore.deleteItemAsync("needs_driver_setup");
                   await SecureStore.deleteItemAsync("is_verified_driver");
 
+                
+
                   // 🪙 CRITICAL FIX: Persist Session Tokens & Identity Vectors to kill 404s
                   if (data.token) {
                     await SecureStore.setItemAsync("user_token", data.token);

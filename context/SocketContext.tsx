@@ -50,6 +50,10 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
     newSocket.on('connect', () => {
       setIsConnected(true);
       console.log(`🪙 Real-time socket established successfully: Room context applied [${role}]`);
+
+      // 🧊 ATOMIC STATE PROPAGATION HANDSHAKE
+      // Emit an explicit initialization confirmation check right inside the connection vector path
+      newSocket.emit("user:sync_onboarding_state", { userId, role });
     });
 
     newSocket.on('disconnect', () => {

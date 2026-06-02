@@ -505,6 +505,14 @@ export default function AccountScreen() {
               onPress={() => router.push("/affiliate")}
             />
             <LegoPill
+  title="ADVERTISING"
+  subtitle="Win luxury getaways"
+  icon={Users}
+  color="#8B5CF6"
+  shadowColor="#5B21B6"
+  onPress={() => router.push("/advertising-campaign")}
+/>
+            <LegoPill
               title="CONTACT US"
               subtitle="Help, support & inquiries"
               icon={Mail}

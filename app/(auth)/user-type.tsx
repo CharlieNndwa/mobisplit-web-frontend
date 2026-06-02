@@ -22,6 +22,9 @@ export default function UserTypeSelection() {
     try {
       // 1. Persist the user profile selection identity securely across states
       await SecureStore.setItemAsync('user_type', type);
+
+      // 🧊 ATOMIC STATE PROPAGATION: Wiping modal suppression parameters cleanly
+      // await SecureStore.deleteItemAsync('has_seen_advertiser_modal');
       
       // ✨ FIX: Check both common storage patterns to avoid token drops
       let token = await SecureStore.getItemAsync('user_token');
@@ -53,8 +56,11 @@ export default function UserTypeSelection() {
         setTimeout(() => {
           setLoading(null);
           console.log("🚗 Routing driver account cleanly to functional home tab layout...");
-          // ✨ Explicitly route right to the home screen layout root tab
-          router.replace("/(tabs)/home");
+         // 🧊 ROUTE NAVIGATION RESETTING: Inject dynamic routing hooks so Home intercepts the context instantly
+          router.replace({
+            pathname: "/(tabs)/home",
+            params: { triggerPromo: "true" }
+          });
         }, 800);
       } else {
         await SecureStore.setItemAsync('needs_driver_setup', 'false');
