@@ -5,7 +5,6 @@ import Script from "next/script";
 function MyApp({ Component, pageProps }) {
   return (
     <>
-      {/* 🧊 Fixed: Modified injection strategies to lazy-load resource-intensive files, stopping navigation freezing */}
       <Script 
         src="FileSaver.js-master/src/FileSaver.js" 
         strategy="lazyOnload" 
@@ -14,8 +13,10 @@ function MyApp({ Component, pageProps }) {
         src="jsPDF-master/dist/jspdf.debug.js" 
         strategy="lazyOnload" 
       />
+      
+      {/* 🧊 Fixed: Updated path pointing to the public directory asset location away from the page engine */}
       <Script 
-        src="./Poppins-normal.js" 
+        src="/Poppins-normal.js" 
         type="module" 
         strategy="afterInteractive" 
       />
