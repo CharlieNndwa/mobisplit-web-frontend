@@ -1,17 +1,24 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  content: ["./app/**/*.{js,jsx,ts,tsx}", "./components/**/*.{js,jsx,ts,tsx}"],
-  presets: [require("nativewind/preset")],
+  content: [
+    "./pages/**/*.{js,ts,jsx,tsx}",
+    "./components/**/*.{js,ts,jsx,tsx}",
+    "./container/**/*.{js,ts,jsx,tsx}",
+  ],
   theme: {
     extend: {
+      screens: {
+        sm: "320px",
+        md: "481px",
+        lg: "869",
+        xl: "1120px",
+        "2xl": "1500px",
+      },
       colors: {
-        brand: {
-          dark: '#0B0E14',
-          card: '#1B2129',
-          teal: '#00F2C3',
-        }
+        primary: "#062775",
+        // primary: "#008080",
       },
     },
   },
   plugins: [],
-}
+};

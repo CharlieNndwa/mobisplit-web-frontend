@@ -13,7 +13,13 @@
       "distribution": "internal"
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "ios": {
+        "simulator": false
+      },
+      "android": {
+        "autoIncrement": true
+      }
     }
   },
   "submit": {
@@ -21,6 +27,11 @@
       "android": {
         "serviceAccountKeyPath": "./google-services-key.json",
         "track": "internal"
+      },
+      "ios": {
+        "appleId": "charlie@mobisplit.co.za",
+        "ascAppId": "6776342884",
+        "appleTeamId": "3KXW4A5G5W"
       }
     }
   }
